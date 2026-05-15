@@ -24,6 +24,7 @@ import { useCallback, useEffect, useState } from "react";
 import { HabitDeleteDialog } from "./habit-delete-dialog";
 import { HabitEmptyState } from "./habit-empty-state";
 import { HabitForm } from "./habit-form";
+import { HabitPrinciples } from "./habit-principles";
 import { HabitRow } from "./habit-row";
 
 const AFFIRMATIONS = [
@@ -311,32 +312,34 @@ export function HabitList() {
   }
 
   return (
-    <div className="flex flex-col gap-0 animate-fade-up">
-      {/* Header — only shown when habits exist */}
-      <div className="flex items-center justify-between pb-6">
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Habits</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setEditingHabit(null); setFormMode("walkthrough"); }}
-            className="text-muted-foreground text-xs"
-          >
-            Walk me through it
-          </Button>
-          <Button size="sm" onClick={() => { setEditingHabit(null); setFormMode("quick"); }}>
-            + Add habit
-          </Button>
+    <div className="grid grid-cols-[1fr_260px] gap-12 animate-fade-up items-start">
+      {/* ── Left column: habit list ── */}
+      <div className="flex flex-col min-w-0">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-6">
+          <h1 className="font-display text-2xl font-semibold tracking-tight">Habits</h1>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setEditingHabit(null); setFormMode("walkthrough"); }}
+              className="text-muted-foreground text-xs"
+            >
+              Walk me through it
+            </Button>
+            <Button size="sm" onClick={() => { setEditingHabit(null); setFormMode("quick"); }}>
+              + Add habit
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Reorder error */}
-      {reorderError && (
-        <p className="text-xs text-destructive mb-3">{reorderError}</p>
-      )}
+        {/* Reorder error */}
+        {reorderError && (
+          <p className="text-xs text-destructive mb-3">{reorderError}</p>
+        )}
 
-      {/* Active list */}
-      <DndContext
+        {/* Active list */}
+        <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
@@ -375,67 +378,76 @@ export function HabitList() {
         </SortableContext>
       </DndContext>
 
-      {/* Archive section */}
-      {archivedHabits.length > 0 && (
-        <div className="mt-8">
-          <button
-            type="button"
-            onClick={() => setShowArchived((v) => !v)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
-          >
-            {showArchived ? (
-              <ChevronDown className="w-3.5 h-3.5" />
-            ) : (
-              <ChevronRight className="w-3.5 h-3.5" />
+        {/* Archive section */}
+        {archivedHabits.length > 0 && (
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => setShowArchived((v) => !v)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
+            >
+              {showArchived ? (
+                <ChevronDown className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" />
+              )}
+              Show archived habits ({archivedHabits.length})
+            </button>
+
+            {showArchived && (
+              <div className="flex flex-col">
+                {archivedHabits.map((habit, i) => (
+                  <div key={habit.id}>
+                    <HabitRow
+                      habit={habit}
+                      logDates={logDates[habit.id] ?? []}
+                      today={today}
+                      inFlightDates={new Set()}
+                      onToggle={() => {}}
+                      onEdit={() => {}}
+                      onArchiveToggle={() => handleRestore(habit)}
+                      onDelete={() => setDeleteTarget(habit)}
+                    />
+                    {i < archivedHabits.length - 1 && (
+                      <Separator className="opacity-20" />
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
-            Show archived habits ({archivedHabits.length})
-          </button>
+          </div>
+        )}
 
-          {showArchived && (
-            <div className="flex flex-col">
-              {archivedHabits.map((habit, i) => (
-                <div key={habit.id}>
-                  <HabitRow
-                    habit={habit}
-                    logDates={logDates[habit.id] ?? []}
-                    today={today}
-                    inFlightDates={new Set()}
-                    onToggle={() => {}}
-                    onEdit={() => {}}
-                    onArchiveToggle={() => handleRestore(habit)}
-                    onDelete={() => setDeleteTarget(habit)}
-                  />
-                  {i < archivedHabits.length - 1 && (
-                    <Separator className="opacity-20" />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+        {/* Forms */}
+        {formMode && (
+          <HabitForm
+            open
+            mode={formMode}
+            initial={editingHabit ?? undefined}
+            onClose={() => { setFormMode(null); setEditingHabit(null); }}
+            onCreated={handleFormCreatedOrUpdated}
+            onArchived={handleArchivedViaForm}
+          />
+        )}
 
-      {/* Forms */}
-      {formMode && (
-        <HabitForm
-          open
-          mode={formMode}
-          initial={editingHabit ?? undefined}
-          onClose={() => { setFormMode(null); setEditingHabit(null); }}
-          onCreated={handleFormCreatedOrUpdated}
-          onArchived={handleArchivedViaForm}
-        />
-      )}
+        {/* Delete confirmation */}
+        {deleteTarget && (
+          <HabitDeleteDialog
+            open
+            habitName={deleteTarget.name}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={() => handleDelete(deleteTarget)}
+          />
+        )}
+      </div>
 
-      {/* Delete confirmation */}
-      {deleteTarget && (
-        <HabitDeleteDialog
-          open
-          habitName={deleteTarget.name}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={() => handleDelete(deleteTarget)}
-        />
-      )}
+      {/* ── Right column: principles sidebar ── */}
+      <aside className="pt-[52px] border-l border-border/50 pl-10">
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-medium mb-5">
+          Principles
+        </p>
+        <HabitPrinciples compact />
+      </aside>
     </div>
   );
 }
