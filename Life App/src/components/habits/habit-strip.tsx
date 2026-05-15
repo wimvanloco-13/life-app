@@ -19,10 +19,7 @@ interface HabitStripProps {
   onToggle: (date: string) => void;
 }
 
-/**
- * Build the 14-date window ending on `today` (inclusive).
- * Uses string arithmetic so it stays pure and timezone-safe.
- */
+/** Build the 14-date window ending on today (inclusive), timezone-safe. */
 function buildWindow(today: string): string[] {
   const dates: string[] = [];
   const [y, m, d] = today.split("-").map(Number);
@@ -38,6 +35,14 @@ function buildWindow(today: string): string[] {
   return dates;
 }
 
+/** Short weekday label from an ISO date string. */
+function dayAbbr(isoDate: string): string {
+  // Append T12:00:00 to avoid timezone shifting the date to the previous day.
+  return new Date(`${isoDate}T12:00:00`)
+    .toLocaleDateString("en-US", { weekday: "short" })
+    .slice(0, 2);
+}
+
 export function HabitStrip({
   recentLogDates,
   habitColor,
@@ -48,76 +53,102 @@ export function HabitStrip({
   error,
   onToggle,
 }: HabitStripProps) {
-  const window = buildWindow(today);
+  const all14 = buildWindow(today);
+  const weeks = [all14.slice(0, 7), all14.slice(7, 14)];
   const logSet = new Set(recentLogDates);
-
-  // Normalise createdAt to a date-only string for comparison.
   const createdDate = habitCreatedAt.slice(0, 10);
 
   return (
-    <div className="flex flex-col gap-1">
-      <TooltipProvider delayDuration={200}>
-        <div className="flex gap-[3px]" role="list" aria-label="14-day completion strip">
-          {window.map((date) => {
-            const isBeforeCreation = date < createdDate;
-            const isInFlight = inFlightDates.has(date);
-            const isLogged = logSet.has(date);
-            const isToday = date === today;
+    <div className="flex flex-col gap-1.5">
+      <TooltipProvider delayDuration={150}>
+        {weeks.map((week, wi) => (
+          <div key={wi} className="flex gap-1.5" role="row">
+            {week.map((date) => {
+              const isBeforeCreation = date < createdDate;
+              const isInFlight = inFlightDates.has(date);
+              const filled = logSet.has(date);
+              const isToday = date === today;
+              const num = parseInt(date.split("-")[2]);
 
-            const filled = isLogged;
+              if (isBeforeCreation) {
+                return (
+                  <div
+                    key={date}
+                    aria-hidden="true"
+                    className="flex flex-col items-center gap-0.5 w-8"
+                  >
+                    <span className="text-[9px] text-muted-foreground/40 leading-none">
+                      {dayAbbr(date)}
+                    </span>
+                    <div className="w-8 h-8 rounded-md bg-muted/20" />
+                  </div>
+                );
+              }
 
-            const baseClasses =
-              "h-[18px] w-[18px] rounded-[3px] transition-transform duration-150";
-
-            if (isBeforeCreation) {
               return (
-                <div
-                  key={date}
-                  role="listitem"
-                  className={`${baseClasses} bg-muted/30`}
-                  aria-hidden="true"
-                />
-              );
-            }
+                <Tooltip key={date}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={`${formatDateForDisplay(date)}${filled ? " — done" : ""}`}
+                      aria-pressed={filled}
+                      disabled={isInFlight}
+                      onClick={() => onToggle(date)}
+                      className={[
+                        "flex flex-col items-center gap-0.5 w-8 rounded-md transition-all duration-150",
+                        isInFlight
+                          ? "opacity-60 cursor-wait"
+                          : "cursor-pointer hover:opacity-80 active:scale-95",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {/* Day label */}
+                      <span
+                        className={`text-[9px] leading-none font-medium ${
+                          isToday
+                            ? "text-foreground/60"
+                            : "text-muted-foreground/50"
+                        }`}
+                      >
+                        {dayAbbr(date)}
+                      </span>
 
-            return (
-              <Tooltip key={date}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={`${formatDateForDisplay(date)}${filled ? " — done" : ""}`}
-                    aria-pressed={filled}
-                    disabled={isInFlight}
-                    onClick={() => onToggle(date)}
-                    className={[
-                      baseClasses,
-                      "cursor-pointer",
-                      isInFlight ? "opacity-70 cursor-wait" : "hover:scale-110 active:scale-95",
-                      isToday && !filled ? "ring-1 ring-offset-1 ring-muted-foreground/30" : "",
-                      filled ? "" : "bg-muted/50",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    style={filled ? { backgroundColor: habitColor } : undefined}
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs font-mono">
-                  {formatDateForDisplay(date)}
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
+                      {/* Date cell */}
+                      <div
+                        className={[
+                          "w-8 h-8 rounded-md flex items-center justify-center text-xs font-mono font-medium transition-colors duration-150",
+                          isToday && !filled
+                            ? "ring-1 ring-foreground/25 ring-offset-1"
+                            : "",
+                          filled ? "text-white" : "text-muted-foreground bg-muted/40",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={filled ? { backgroundColor: habitColor } : undefined}
+                      >
+                        {num}
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {formatDateForDisplay(date)}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        ))}
       </TooltipProvider>
 
-      {/* Inline affirmation or error — mutually exclusive */}
+      {/* Inline feedback — mutually exclusive */}
       {affirmation && (
-        <p className="text-[11px] text-muted-foreground animate-fade-in leading-snug">
+        <p className="text-[11px] text-muted-foreground animate-fade-in leading-snug mt-0.5">
           {affirmation}
         </p>
       )}
       {!affirmation && error && (
-        <p className="text-[11px] text-destructive leading-snug">{error}</p>
+        <p className="text-[11px] text-destructive leading-snug mt-0.5">{error}</p>
       )}
     </div>
   );

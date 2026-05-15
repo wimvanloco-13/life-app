@@ -29,7 +29,6 @@ interface HabitRowProps {
   onToggle: (habitId: number, date: string) => void;
   onEdit: () => void;
   onDelete: () => void;
-  /** Archive active -> archived, or restore archived -> active */
   onArchiveToggle: () => void;
 }
 
@@ -62,7 +61,7 @@ export function HabitRow({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.45 : 1,
     zIndex: isDragging ? 10 : undefined,
   };
 
@@ -70,47 +69,108 @@ export function HabitRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 py-4 group stagger-item bg-background ${
+      className={`py-5 stagger-item bg-background ${
         habit.isArchived ? "opacity-60" : ""
       }`}
     >
-      {/* Drag handle — hidden on archived rows */}
-      {!habit.isArchived && (
-        <button
-          type="button"
-          className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground transition-colors shrink-0 touch-none"
-          aria-label="Drag to reorder"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="w-4 h-4" />
-        </button>
-      )}
+      {/* ── Top row: drag · color · identity/name · streak · edit · more ── */}
+      <div className="flex items-start gap-2.5">
+        {/* Drag handle */}
+        {!habit.isArchived && (
+          <button
+            type="button"
+            className="cursor-grab text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors shrink-0 mt-0.5 touch-none"
+            aria-label="Drag to reorder"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        )}
+        {habit.isArchived && <div className="w-4 shrink-0" />}
 
-      {/* Color indicator */}
-      <div
-        className="w-2 h-2 rounded-full shrink-0 mt-0.5"
-        style={{ backgroundColor: habit.color }}
-        aria-hidden="true"
-      />
+        {/* Color dot */}
+        <div
+          className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
+          style={{ backgroundColor: habit.color }}
+          aria-hidden="true"
+        />
 
-      {/* Identity + name */}
-      <div className="min-w-0 flex-1">
-        {habit.identity && (
+        {/* Identity + name */}
+        <div className="flex-1 min-w-0">
           <p
-            className={`text-[11px] text-muted-foreground leading-none mb-0.5 truncate font-display ${
+            className={`font-display text-[15px] font-semibold leading-snug truncate ${
               habit.isArchived ? "line-through" : ""
             }`}
           >
-            {habit.identity}
+            {habit.identity || habit.name}
           </p>
+          {habit.identity && (
+            <p className="text-xs text-muted-foreground leading-snug truncate mt-0.5">
+              {habit.name}
+            </p>
+          )}
+        </div>
+
+        {/* Streak (active only) */}
+        {!habit.isArchived && (
+          <div className="shrink-0 text-right min-w-[48px]">
+            <p className="text-sm font-mono font-semibold tabular-nums leading-none">
+              {currentStreak}
+              <span className="text-[10px] text-muted-foreground font-sans font-normal ml-0.5">
+                d
+              </span>
+            </p>
+            {bestStreak > currentStreak && bestStreak > 0 && (
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">
+                best {bestStreak}
+              </p>
+            )}
+          </div>
         )}
-        <p className="text-sm font-medium leading-snug truncate">{habit.name}</p>
+
+        {/* Edit button — always visible for active habits */}
+        {!habit.isArchived && (
+          <button
+            type="button"
+            onClick={onEdit}
+            aria-label="Edit habit"
+            className="shrink-0 p-1 rounded text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Kebab — archive + delete only */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More options"
+              className="shrink-0 p-1 rounded text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-colors"
+            >
+              <MoreVertical className="w-3.5 h-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={onArchiveToggle}>
+              <ArchiveRestore className="w-3.5 h-3.5 mr-2" />
+              {habit.isArchived ? "Restore" : "Archive"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="w-3.5 h-3.5 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* 14-day strip + affirmation (active only) */}
+      {/* ── Calendar grid (active habits only) ── */}
       {!habit.isArchived && (
-        <div className="shrink-0">
+        <div className="mt-3 pl-[26px]">
           <HabitStrip
             recentLogDates={logDates}
             habitColor={habit.color}
@@ -123,55 +183,6 @@ export function HabitRow({
           />
         </div>
       )}
-
-      {/* Streak (active only) */}
-      {!habit.isArchived && (
-        <div className="shrink-0 text-right w-[72px]">
-          <p className="text-base font-mono font-semibold leading-none tabular-nums">
-            {currentStreak}
-            <span className="text-[10px] text-muted-foreground font-sans font-normal ml-0.5">
-              d
-            </span>
-          </p>
-          {bestStreak > currentStreak && (
-            <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">
-              best {bestStreak}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Kebab menu */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label="Habit options"
-            className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors p-1 rounded"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          {!habit.isArchived && (
-            <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="w-3.5 h-3.5 mr-2" />
-              Edit
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={onArchiveToggle}>
-            <ArchiveRestore className="w-3.5 h-3.5 mr-2" />
-            {habit.isArchived ? "Restore" : "Archive"}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={onDelete}
-            className="text-destructive focus:text-destructive"
-          >
-            <Trash2 className="w-3.5 h-3.5 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </div>
   );
 }
