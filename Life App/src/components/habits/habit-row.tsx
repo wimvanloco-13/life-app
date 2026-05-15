@@ -47,7 +47,7 @@ export function HabitRow({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.45 : 1,
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 10 : undefined,
   };
 
@@ -55,92 +55,132 @@ export function HabitRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col gap-3 rounded-xl border border-border/50 bg-card p-4 stagger-item ${
-        habit.isArchived ? "opacity-60" : ""
+      className={`flex items-start gap-10 py-7 stagger-item ${
+        habit.isArchived ? "opacity-50" : ""
       }`}
     >
-      {/* ── Card header ── */}
-      <div className="flex items-start gap-2">
-        {/* Color dot */}
-        <div
-          className="w-2.5 h-2.5 rounded-full shrink-0 mt-1"
-          style={{ backgroundColor: habit.color }}
-          aria-hidden="true"
-        />
-
-        {/* Identity + name */}
-        <div className="flex-1 min-w-0">
+      {/* ── Left: identity block ── */}
+      <div className="w-52 shrink-0 flex flex-col gap-1 pt-1">
+        {/* Color dot + identity */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-3 h-3 rounded-full shrink-0"
+            style={{ backgroundColor: habit.color }}
+            aria-hidden="true"
+          />
           <p
-            className={`font-display text-[14px] font-semibold leading-snug ${
-              habit.isArchived ? "line-through" : ""
+            className={`font-display text-[15px] font-semibold leading-snug ${
+              habit.isArchived ? "line-through text-muted-foreground" : ""
             }`}
           >
             {habit.identity || habit.name}
           </p>
-          {habit.identity && (
-            <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-              {habit.name}
-            </p>
-          )}
         </div>
+
+        {/* Habit name (subtitle when identity is separate) */}
+        {habit.identity && (
+          <p className="text-[12px] text-muted-foreground pl-[22px] leading-snug">
+            {habit.name}
+          </p>
+        )}
 
         {/* Streak */}
         {!habit.isArchived && (
-          <div className="shrink-0 text-right">
-            <p className="text-sm font-mono font-semibold tabular-nums leading-none">
+          <div className="pl-[22px] mt-2">
+            <p className="text-[13px] font-mono font-semibold tabular-nums leading-none text-foreground/80">
               {currentStreak}
-              <span className="text-[10px] text-muted-foreground font-sans font-normal ml-0.5">d</span>
+              <span className="text-[11px] text-muted-foreground font-sans font-normal ml-0.5">
+                d streak
+              </span>
             </p>
-            {bestStreak > currentStreak && bestStreak > 0 && (
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">
-                best {bestStreak}
+            {bestStreak > currentStreak && bestStreak > 1 && (
+              <p className="text-[11px] text-muted-foreground/60 mt-1 leading-none">
+                best {bestStreak}d
               </p>
             )}
           </div>
         )}
 
-        {/* Edit — always visible for active habits */}
-        {!habit.isArchived && (
-          <button
-            type="button"
-            onClick={onEdit}
-            aria-label="Edit habit"
-            className="shrink-0 p-1 rounded text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
+        {/* Inline feedback */}
+        {!habit.isArchived && affirmation && (
+          <p className="pl-[22px] mt-1 text-[11px] text-muted-foreground animate-fade-in leading-snug">
+            {affirmation}
+          </p>
+        )}
+        {!habit.isArchived && !affirmation && error && (
+          <p className="pl-[22px] mt-1 text-[11px] text-destructive leading-snug">{error}</p>
         )}
 
-        {/* Kebab */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        {/* Controls */}
+        {!habit.isArchived && (
+          <div className="flex items-center gap-0.5 pl-[18px] mt-2">
             <button
               type="button"
-              aria-label="More options"
-              className="shrink-0 p-1 rounded text-muted-foreground/30 hover:text-foreground hover:bg-muted/60 transition-colors"
+              onClick={onEdit}
+              aria-label="Edit habit"
+              className="p-1.5 rounded text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-colors"
             >
-              <MoreVertical className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5" />
             </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuItem onClick={onArchiveToggle}>
-              <ArchiveRestore className="w-3.5 h-3.5 mr-2" />
-              {habit.isArchived ? "Restore" : "Archive"}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={onDelete}
-              className="text-destructive focus:text-destructive"
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-2" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="More options"
+                  className="p-1.5 rounded text-muted-foreground/30 hover:text-foreground hover:bg-muted/60 transition-colors"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-40">
+                <DropdownMenuItem onClick={onArchiveToggle}>
+                  <ArchiveRestore className="w-3.5 h-3.5 mr-2" />
+                  Archive
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Archived habit controls */}
+        {habit.isArchived && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="More options"
+                className="p-1.5 rounded text-muted-foreground/30 hover:text-foreground hover:bg-muted/60 transition-colors ml-[18px] mt-2 w-fit"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-40">
+              <DropdownMenuItem onClick={onArchiveToggle}>
+                <ArchiveRestore className="w-3.5 h-3.5 mr-2" />
+                Restore
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      {/* ── 3-week calendar ── */}
+      {/* ── Right: 3-week calendar ── */}
       {!habit.isArchived && (
-        <>
+        <div className="flex-1 min-w-0">
           <HabitCalendar
             recentLogDates={logDates}
             habitColor={habit.color}
@@ -149,16 +189,7 @@ export function HabitRow({
             inFlightDates={inFlightDates}
             onToggle={(date) => onToggle(habit.id, date)}
           />
-          {/* Inline feedback */}
-          {affirmation && (
-            <p className="text-[11px] text-muted-foreground animate-fade-in leading-snug -mt-1">
-              {affirmation}
-            </p>
-          )}
-          {!affirmation && error && (
-            <p className="text-[11px] text-destructive leading-snug -mt-1">{error}</p>
-          )}
-        </>
+        </div>
       )}
     </div>
   );

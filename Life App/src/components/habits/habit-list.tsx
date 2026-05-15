@@ -311,9 +311,9 @@ export function HabitList() {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-fade-up">
-      {/* ── Actions bar — no page title ── */}
-      <div className="flex items-center justify-end gap-2">
+    <div className="flex flex-col animate-fade-up">
+      {/* ── Actions bar ── */}
+      <div className="flex items-center justify-end gap-2 pb-2">
         {reorderError && (
           <p className="text-xs text-destructive mr-auto">{reorderError}</p>
         )}
@@ -330,7 +330,7 @@ export function HabitList() {
         </Button>
       </div>
 
-      {/* ── Active habit card grid ── */}
+      {/* ── Active habit list — full-width rows, divided ── */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -340,7 +340,7 @@ export function HabitList() {
           items={activeHabits.map((h) => h.id)}
           strategy={verticalListSortingStrategy}
         >
-          <div className="grid grid-cols-2 gap-4">
+          <div className="divide-y divide-border/40">
             {activeHabits.map((habit) => (
               <HabitRow
                 key={habit.id}
@@ -368,11 +368,11 @@ export function HabitList() {
 
       {/* ── Archive section ── */}
       {archivedHabits.length > 0 && (
-        <div className="mt-2">
+        <div className="mt-8">
           <button
             type="button"
             onClick={() => setShowArchived((v) => !v)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2"
           >
             {showArchived ? (
               <ChevronDown className="w-3.5 h-3.5" />
@@ -382,7 +382,7 @@ export function HabitList() {
             Show archived habits ({archivedHabits.length})
           </button>
           {showArchived && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="divide-y divide-border/30">
               {archivedHabits.map((habit) => (
                 <HabitRow
                   key={habit.id}
@@ -401,8 +401,10 @@ export function HabitList() {
         </div>
       )}
 
-      {/* ── Principles — full-width 3-column row below the grid ── */}
-      <HabitPrinciples horizontal />
+      {/* ── Principles — 3-column full-width below the list ── */}
+      <div className="mt-12">
+        <HabitPrinciples horizontal />
+      </div>
 
       {/* Forms */}
       {formMode && (
@@ -433,21 +435,36 @@ export function HabitList() {
 
 function HabitListSkeleton() {
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-end">
+    <div className="flex flex-col">
+      <div className="flex justify-end pb-2">
         <Skeleton className="h-8 w-28" />
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-xl border border-border/50 p-4 flex flex-col gap-3">
-            <div className="flex items-start gap-2">
-              <Skeleton className="w-2.5 h-2.5 rounded-full mt-1 shrink-0" />
-              <div className="flex-1 flex flex-col gap-1.5">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-24" />
+      <div className="divide-y divide-border/40">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-start gap-10 py-7">
+            <div className="w-52 shrink-0 flex flex-col gap-2 pt-1">
+              <div className="flex items-center gap-2.5">
+                <Skeleton className="w-3 h-3 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-32" />
               </div>
+              <Skeleton className="h-3 w-20 ml-[22px]" />
+              <Skeleton className="h-3 w-14 ml-[22px] mt-1" />
             </div>
-            <Skeleton className="h-[88px] w-full rounded-md" />
+            <div className="flex-1 flex flex-col gap-1.5">
+              <div className="flex gap-2 pl-10">
+                {Array.from({ length: 7 }).map((_, j) => (
+                  <Skeleton key={j} className="w-11 h-4 rounded" />
+                ))}
+              </div>
+              {[0, 1, 2].map((r) => (
+                <div key={r} className="flex items-center gap-2">
+                  <Skeleton className="w-8 h-3 rounded" />
+                  {Array.from({ length: 7 }).map((_, j) => (
+                    <Skeleton key={j} className="w-11 h-11 rounded-lg" />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>

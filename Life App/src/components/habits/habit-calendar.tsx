@@ -19,11 +19,10 @@ interface HabitCalendarProps {
 
 const DAY_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
-/** Monday of the week containing `today`. */
 function getMondayOf(today: string): Date {
   const [y, m, d] = today.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
-  const dow = dt.getDay(); // 0 = Sun
+  const dow = dt.getDay();
   const offset = dow === 0 ? 6 : dow - 1;
   const mon = new Date(dt);
   mon.setDate(dt.getDate() - offset);
@@ -47,13 +46,10 @@ function weekFrom(monday: Date): string[] {
 
 function getThreeWeeks(today: string) {
   const thisMonday = getMondayOf(today);
-
   const lastMonday = new Date(thisMonday);
   lastMonday.setDate(thisMonday.getDate() - 7);
-
   const nextMonday = new Date(thisMonday);
   nextMonday.setDate(thisMonday.getDate() + 7);
-
   return [
     { label: "Last", dates: weekFrom(lastMonday) },
     { label: "This", dates: weekFrom(thisMonday) },
@@ -74,12 +70,15 @@ export function HabitCalendar({
   const createdDate = habitCreatedAt.slice(0, 10);
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className="flex flex-col gap-1">
-        {/* Day-of-week header */}
-        <div className="flex gap-1 pl-[30px]">
+    <TooltipProvider delayDuration={120}>
+      <div className="flex flex-col gap-1.5">
+        {/* Day-of-week header row */}
+        <div className="flex gap-2 pl-10">
           {DAY_LABELS.map((lbl) => (
-            <div key={lbl} className="w-8 text-center text-[9px] text-muted-foreground/50 font-medium">
+            <div
+              key={lbl}
+              className="w-11 text-center text-[11px] font-medium text-muted-foreground/50 select-none"
+            >
               {lbl}
             </div>
           ))}
@@ -87,9 +86,9 @@ export function HabitCalendar({
 
         {/* Three week rows */}
         {weeks.map(({ label, dates }) => (
-          <div key={label} className="flex items-center gap-1">
+          <div key={label} className="flex items-center gap-2">
             {/* Week label */}
-            <div className="w-[26px] shrink-0 text-[9px] text-muted-foreground/40 text-right pr-1 font-medium leading-none">
+            <div className="w-8 shrink-0 text-[10px] font-medium text-muted-foreground/40 text-right leading-none select-none">
               {label}
             </div>
 
@@ -101,16 +100,15 @@ export function HabitCalendar({
               const isToday = date === today;
               const num = parseInt(date.split("-")[2]);
 
-              // Future or pre-creation: non-interactive
               if (isFuture || isBeforeCreation) {
                 return (
                   <div
                     key={date}
-                    className="w-8 h-8 rounded-md flex items-center justify-center"
+                    className="w-11 h-11 rounded-lg flex items-center justify-center"
                     aria-hidden="true"
                   >
                     <span
-                      className={`text-xs font-mono ${
+                      className={`text-sm font-mono ${
                         isFuture
                           ? "text-muted-foreground/20"
                           : "text-muted-foreground/15"
@@ -132,11 +130,19 @@ export function HabitCalendar({
                       disabled={isInFlight}
                       onClick={() => onToggle(date)}
                       className={[
-                        "w-8 h-8 rounded-md flex items-center justify-center text-xs font-mono font-medium transition-all duration-150",
-                        isInFlight ? "opacity-60 cursor-wait" : "cursor-pointer hover:opacity-80 active:scale-95",
-                        isToday && !filled ? "ring-1 ring-foreground/30 ring-offset-1" : "",
-                        filled ? "text-white" : "text-muted-foreground/70 bg-muted/40",
-                      ].filter(Boolean).join(" ")}
+                        "w-11 h-11 rounded-lg flex items-center justify-center text-sm font-mono font-medium transition-all duration-150 select-none",
+                        isInFlight
+                          ? "opacity-50 cursor-wait"
+                          : "cursor-pointer hover:opacity-75 active:scale-95",
+                        isToday && !filled
+                          ? "ring-2 ring-foreground/20 ring-offset-2"
+                          : "",
+                        filled
+                          ? "text-white shadow-sm"
+                          : "text-foreground/50 bg-muted/50",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
                       style={filled ? { backgroundColor: habitColor } : undefined}
                     >
                       {num}
