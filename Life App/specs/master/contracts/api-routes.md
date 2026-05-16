@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-05-15. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), and **Habit Tracking Phase 1** (`/api/habits`, `/api/habit-logs`). Onboarding Wizard removed.
+> Last updated: 2026-05-16. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking Phase 1** (`/api/habits`, `/api/habit-logs`), and **Goal Archive Cascade** (archiving/restoring a yearly goal now propagates to monthly children). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -289,6 +289,8 @@ Create a new goal.
 Update a goal. Accepts: `title`, `description`, `targetDate`, `sessionsPerWeek`, `status`, `isCompleted`, `roleIds`, `activityTypeId`, `targetMetric`, `targetValue`, `targetPeriod`, `horizon`, `parentGoalId`, `month`, `targetUnit`.
 
 `sessionsPerWeek`, when provided, is clamped server-side to `[1, 7]` using the same rules as POST. Non-numeric or non-finite input is dropped (treated as "no change") rather than coerced.
+
+**Archive / restore cascade**: when `status` is set to `"archived"` or `"active"`, the same status is immediately applied to all monthly sub-goals (`parentGoalId = id`). This cascade does **not** fire for `status: "completed"` — completing a yearly goal does not force-complete its monthly children.
 
 ### DELETE /api/goals/:id
 
