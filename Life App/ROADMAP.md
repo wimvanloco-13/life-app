@@ -1,6 +1,6 @@
 ﻿# Life App -- Feature Roadmap
 
-> Last updated: 2026-05-13.
+> Last updated: 2026-05-16.
 
 ## Product Vision
 
@@ -20,7 +20,7 @@ Each feature below becomes a separate spec-kit specification. Features are order
 **What it does**: A weekly and monthly planning system based on Covey's fourth-generation time management. The user defines life roles (Athlete, Professional, Partner, etc.), sets long-term goals with target dates, selects goals to focus on each week, and uses an auto-scheduler to plan activities across their calendar. Includes a personal mission statement, recurring events, and weekly analytics.
 
 **What has been built**:
-- Roles with scheduling constraints (work role flag, max weekly occurrences, min rest days)
+- Roles with work role flag and display order (per-role scheduling constraints removed — see Role Scheduling Rules Removal)
 - Default Covey-inspired role seeding (Professional, Athlete, Partner, Learner, Friend, Individual)
 - Standalone goals with multi-role support, target dates, and per-goal sessions-per-week
 - Dynamic urgency derivation from target date (no manual quadrant selection)
@@ -577,6 +577,75 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 **New files**: `src/lib/auth.ts`, `src/lib/seed-user-defaults.ts`, `src/lib/rate-limit.ts`, `src/components/layout/layout-wrapper.tsx`, `src/middleware.ts`, `apply-schema.js`, `Dockerfile`, `railway.toml`
 
 **Dependencies**: All prior features (this is a cross-cutting change).
+
+---
+
+### Role Scheduling Rules Removal
+
+**Spec ID**: `role-scheduling-rules-removal`
+**Status**: Built (complete)
+**Completed**: 2026-05-15
+
+**What it does**: Removes the per-role scheduling constraint fields (`max_weekly_occurrences`, `min_rest_days`) that were added in Phase 3 but proved confusing in practice. Scheduling caps are now owned entirely by the goal's `sessionsPerWeek` field and the global `schedulerSettings.maxActivitiesPerDay` — there is no per-role cap. A server-side `[1, 7]` clamp on goal `sessionsPerWeek` (POST and PATCH) ensures the field always holds a valid value.
+
+**What was removed**:
+- `roles.max_weekly_occurrences` and `roles.min_rest_days` columns (idempotent `ALTER TABLE DROP COLUMN` in `apply-schema.js`)
+- `violatesRestConstraints()` function and its two call sites in `scheduler.ts`
+- "Max times per week" and "Min rest days" inputs from the role form UI
+- Corresponding Drizzle schema fields, TypeScript types, and default-seeding values
+
+**What was added**:
+- `clampSessionsPerWeek(value)` helper in `src/lib/goal-validation.ts`
+- Server-side clamp applied in `POST /api/goals` and `PATCH /api/goals/:id`
+- 12 new unit tests for the clamp helper
+
+**Schema changes**: Dropped `roles.max_weekly_occurrences` and `roles.min_rest_days`.
+
+**Routes modified**: `POST /api/goals`, `PATCH /api/goals/:id` (clamp added). No new routes.
+
+**Dependencies**: Feature 1 (scheduler), Scheduler Rules System.
+
+---
+
+### Habit Tracking
+
+**Spec ID**: `habit-tracking`
+**Status**: Built (complete)
+**Completed**: 2026-05-16
+
+**What it does**: A dedicated habit-tracking section grounded in the identity-based framework from *Atomic Habits*. Each habit is framed around who the user is becoming (identity) rather than what they are doing (behaviour). The user logs daily completions on a 3-week calendar strip, builds streaks, and is nudged by three editorial principles on every screen. Habits are created through a quick form or a 5-step walkthrough that fills in identity, cue, and minimum version fields progressively.
+
+**What has been built**:
+- **Schema**: `habits` table (11 cols: `id`, `user_id`, `identity`, `name`, `cue`, `minimum_version`, `color`, `display_order`, `is_archived`, `created_at`, `updated_at`) and `habit_logs` table (5 cols: `id`, `user_id`, `habit_id`, `date`, `created_at`). Unique index `habit_logs_habit_date_unique` on `(habit_id, date)` enforces at-most-one log per day.
+- **Streak logic**: `computeStreaks(dates, today)` in `src/lib/habit-streaks.ts` — pure client-side, no server clock. Returns `{ current, best }` from an array of ISO date strings. 11 unit tests.
+- **Date helper**: `formatDateForDisplay(iso)` in `src/lib/dates.ts` converts `YYYY-MM-DD` to `DD-MM-YYYY` for all display. 6 new unit tests.
+- **API**: `GET/POST /api/habits` (list with `recentLogDates` last 30 days, create with `displayOrder`), `PATCH/DELETE /api/habits/:id` (update fields + `isArchived`, hard delete), `PUT /api/habits/reorder` (accepts `order: number[]`), `POST/DELETE /api/habit-logs` (both idempotent — POST always 201, DELETE always 204).
+- **UI — empty state**: Full-page centered layout: `HabitEmptyState` with "Habits" title (Fraunces), subtitle, primary "Walk me through it" CTA, secondary "Add a habit" text link, editorial principles below.
+- **UI — populated view**: Full-width rows (`px-6 py-8` outer padding). Each row: identity block on the left (w-60, Fraunces 17px, name subtitle, streak count, edit/kebab controls), `HabitCalendar` component filling the remaining width on the right. Rows separated by `divide-y`.
+- **HabitCalendar**: 3-week calendar grid (last / this / next calendar week, Mon–Sun aligned). Week labels on left, day labels across top, 44px cells with date number. Today gets a ring, future dates are muted and non-interactive.
+- **HabitForm**: Quick mode (name + color) and 5-step walkthrough (identity → name/cue → minimum version → color → review). Reused for edit (PATCH) with archive button in footer. 12 state-machine unit tests.
+- **HabitPrinciples**: Three editorial house-voice principles. Renders compact in sidebar or horizontal 3-column below the habit list.
+- **Management**: Archive/restore (optimistic), hard delete with `HabitDeleteDialog`, drag-to-reorder via `@dnd-kit/sortable` (PointerSensor + KeyboardSensor, wired to `PUT /api/habits/reorder`).
+- **Sidebar nav**: "Habits" entry with `Repeat` icon linking to `/habits`.
+
+**Tables added**: `habits`, `habit_logs`
+
+**Routes added**: `GET/POST /api/habits`, `PATCH/DELETE /api/habits/:id`, `PUT /api/habits/reorder`, `POST/DELETE /api/habit-logs`
+
+**Dependencies**: Friend Release (auth + per-user scoping).
+
+---
+
+### Goal Archive Cascade
+
+**Status**: Built (complete)
+**Completed**: 2026-05-16
+
+**What was fixed**: Archiving a yearly goal left all its monthly children with `status = "active"`. The `PATCH /api/goals/:id` handler only updated the parent row. Added a second UPDATE after the parent update that cascades `status` to all rows where `parentGoalId = goalId`. Cascade applies to `"archived"` and `"active"` (restore) only — completing a yearly goal does not force-complete its monthly children. The `DELETE` handler already handled children correctly.
+
+**Schema changes**: None.
+
+**Routes modified**: `PATCH /api/goals/:id`.
 
 ---
 
