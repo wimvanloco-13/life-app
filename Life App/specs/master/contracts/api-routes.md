@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-05-19. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking Phase 1** (`/api/habits`, `/api/habit-logs`), and **Library Phase 1** (`/api/library/topics`, `/api/library/topics/[slug]`). Onboarding Wizard removed.
+> Last updated: 2026-05-22. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), and **Library** (full — read-only, bookmarks, and admin CRUD). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -1098,6 +1098,103 @@ Returns a single topic with its full nested category and item tree. Each item in
 ```
 
 **Response** `404`: Topic with the given slug does not exist.
+
+---
+
+### GET /api/library/bookmarks
+
+Returns all bookmarked items for the current user, joined with item/category/topic data. Sorted by topic `display_order` then item `display_order`.
+
+**Auth**: required (401 if no session).
+
+**Response** `200`: Array of `BookmarkedItem` (extends `LibraryItem` with `isBookmarked: true`, `topicId`, `topicSlug`, `topicTitle`, `topicIcon`, `categoryTitle`).
+
+---
+
+### POST /api/library/bookmarks
+
+Bookmark an item. **Idempotent** — always returns `201` (INSERT OR IGNORE). Body: `{ itemId: number }`.
+
+**Auth**: required.
+
+**Response** `201`: The `library_bookmarks` row.
+**Response** `400`: Missing or invalid `itemId`.
+**Response** `404`: Item not found.
+
+---
+
+### DELETE /api/library/bookmarks/:itemId
+
+Remove a bookmark. **Idempotent** — always returns `204`, even if no row matched.
+
+**Auth**: required.
+
+**Response** `204`: No content.
+**Response** `400`: Invalid `itemId`.
+
+---
+
+### POST /api/library/topics/:slug/categories
+
+**Admin only** (403 for non-admins). Add a new category to a topic. Body: `{ title: string }` (max 80 chars).
+
+**Response** `201`: Created category row.
+**Response** `400`: Missing/invalid title.
+**Response** `404`: Topic slug not found.
+
+---
+
+### PATCH /api/library/categories/:id
+
+**Admin only**. Update category `title` and/or `displayOrder`. All fields optional.
+
+**Response** `200`: Updated category row.
+**Response** `404`: Category not found.
+
+---
+
+### DELETE /api/library/categories/:id
+
+**Admin only**. Hard-delete. FK cascade removes all items and their bookmarks. **Idempotent** — returns `204` even if already deleted.
+
+**Response** `204`: No content.
+
+---
+
+### POST /api/library/categories/:id/items
+
+**Admin only**. Create a new item. All fields (`title`, `type`, `what`, `why`, `how`) required. `durationOrReps` optional. Length caps enforced (title: 100, what/why: 600, how: 1200, durationOrReps: 120).
+
+**Response** `201`: Created item row.
+**Response** `400`: Validation error.
+**Response** `404`: Category not found.
+
+---
+
+### PATCH /api/library/items/:id
+
+**Admin only**. Update any item field. All fields optional. Same length caps as POST.
+
+**Response** `200`: Updated item row.
+**Response** `404`: Item not found.
+
+---
+
+### DELETE /api/library/items/:id
+
+**Admin only**. Hard-delete. FK cascade removes associated bookmarks.
+
+**Response** `204`: No content.
+
+---
+
+### PUT /api/library/categories/:id/reorder
+
+**Admin only**. Reorder items within a category. Body: `{ order: number[] }` — array of item IDs in desired display order. Updates `display_order` in a single transaction.
+
+**Response** `200`: `{ ok: true }`.
+**Response** `400`: Invalid order array or IDs not belonging to this category.
+**Response** `404`: Category not found.
 
 ---
 
