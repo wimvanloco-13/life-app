@@ -43,9 +43,8 @@ export async function assertOwnership(
   } = opts;
 
   // --- roles ---
-  const allRoleIds = [
-    ...(roleIds ?? []),
-  ].filter((id): id is number => id != null);
+  // Dedupe to avoid false 403 when the same ID appears multiple times.
+  const allRoleIds = [...new Set([...(roleIds ?? [])].filter((id): id is number => id != null))];
 
   if (allRoleIds.length > 0) {
     const found = await db
@@ -58,10 +57,10 @@ export async function assertOwnership(
   }
 
   // --- goals (singular + plural, excluding parentGoalId which is separate) ---
-  const allGoalIds = [
+  const allGoalIds = [...new Set([
     ...(goalIds ?? []),
     ...(goalId != null ? [goalId] : []),
-  ].filter((id): id is number => id != null);
+  ].filter((id): id is number => id != null))];
 
   if (allGoalIds.length > 0) {
     const found = await db
@@ -88,10 +87,10 @@ export async function assertOwnership(
   }
 
   // --- activityTypes (singular + plural) ---
-  const allActivityTypeIds = [
+  const allActivityTypeIds = [...new Set([
     ...(activityTypeIds ?? []),
     ...(activityTypeId != null ? [activityTypeId] : []),
-  ].filter((id): id is number => id != null);
+  ].filter((id): id is number => id != null))];
 
   if (allActivityTypeIds.length > 0) {
     const found = await db

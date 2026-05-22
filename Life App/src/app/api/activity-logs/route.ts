@@ -63,7 +63,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await assertOwnership(userId, { activityTypeId });
+    await assertOwnership(userId, {
+      activityTypeId,
+      goalId: goalId ?? null,
+    });
   } catch (err) {
     if (err instanceof OwnershipError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
