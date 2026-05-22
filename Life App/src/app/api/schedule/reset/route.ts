@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ deleted: toDelete.length });
   } catch (error) {
-    console.error("Schedule reset error:", error);
     return NextResponse.json({ error: "Failed to reset schedule", details: String(error) }, { status: 500 });
   }
 }

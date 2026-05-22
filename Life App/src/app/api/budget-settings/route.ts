@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { budgetSettings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 
 async function getOrCreateBudgetSettings(userId: string) {
@@ -34,6 +34,6 @@ export async function PATCH(request: NextRequest) {
   if (body.savingsGoalTargetDate !== undefined) updates.savingsGoalTargetDate = body.savingsGoalTargetDate == null ? null : String(body.savingsGoalTargetDate);
   if (body.savingsStartingBalance !== undefined) updates.savingsStartingBalance = body.savingsStartingBalance == null ? 0 : Number(body.savingsStartingBalance);
 
-  const [updated] = await db.update(budgetSettings).set(updates).where(eq(budgetSettings.id, settings.id)).returning();
+  const [updated] = await db.update(budgetSettings).set(updates).where(and(eq(budgetSettings.id, settings.id), eq(budgetSettings.userId, userId))).returning();
   return NextResponse.json(updated);
 }

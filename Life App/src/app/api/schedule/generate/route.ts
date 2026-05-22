@@ -268,7 +268,6 @@ export async function POST(request: NextRequest) {
       dateRange: regenerate ? { start: dates[0], end: dates[dates.length - 1] } : null,
     });
   } catch (error) {
-    console.error("Schedule generation error:", error);
     return NextResponse.json({ error: "Failed to generate schedule", details: String(error) }, { status: 500 });
   }
 }

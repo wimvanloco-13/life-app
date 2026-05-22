@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { schedulerSettings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 
 async function getOrCreateSettings(userId: string) {
@@ -52,6 +52,6 @@ export async function PATCH(request: NextRequest) {
   if (body.enforceWeeklySpread !== undefined) updates.enforceWeeklySpread = body.enforceWeeklySpread;
   if (body.maxActivitiesPerDay !== undefined) updates.maxActivitiesPerDay = body.maxActivitiesPerDay;
 
-  const [updated] = await db.update(schedulerSettings).set(updates).where(eq(schedulerSettings.id, settings.id)).returning();
+  const [updated] = await db.update(schedulerSettings).set(updates).where(and(eq(schedulerSettings.id, settings.id), eq(schedulerSettings.userId, userId))).returning();
   return NextResponse.json(formatResponse(updated));
 }

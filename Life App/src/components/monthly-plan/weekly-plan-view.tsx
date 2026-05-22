@@ -326,8 +326,7 @@ export function WeeklyPlanView() {
         body: JSON.stringify({ weekStartDate: ws, scope: "month", regenerate: true, month: currentMonth }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        console.error("Schedule generation failed:", err);
+        // generation failed — proposal stays empty, button re-enables
       } else {
         const data = await res.json();
         const { focusGoalIds, dateRange, regenerate, ...proposal } = data;
@@ -339,8 +338,8 @@ export function WeeklyPlanView() {
         }
         setPreviewOpen(true);
       }
-    } catch (err) {
-      console.error("Schedule generation error:", err);
+    } catch {
+      // generation failed — proposal stays empty, button re-enables
     }
     setGenerating(false);
   }
@@ -359,7 +358,6 @@ export function WeeklyPlanView() {
       body: JSON.stringify({ start, end }),
     });
     if (!res.ok) {
-      console.error("Reset failed");
       alert("Failed to reset schedule. Please try again.");
       return;
     }
@@ -383,13 +381,10 @@ export function WeeklyPlanView() {
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error("Apply failed:", err);
         alert("Failed to apply schedule. Please try again.");
         return;
       }
-    } catch (err) {
-      console.error("Apply error:", err);
+    } catch {
       alert("Failed to apply schedule. Please try again.");
       return;
     } finally {
