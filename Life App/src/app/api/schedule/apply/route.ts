@@ -4,6 +4,7 @@ import { activities } from "@/db/schema";
 import { and, eq, inArray, gte, lte } from "drizzle-orm";
 import type { ProposedActivity } from "@/lib/scheduler";
 import { auth } from "@/lib/auth";
+import { assertOwnership, OwnershipError } from "@/lib/ownership";
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +22,24 @@ export async function POST(request: NextRequest) {
 
     if (!Array.isArray(proposed) || proposed.length === 0) {
       return NextResponse.json({ error: "No activities to apply" }, { status: 400 });
+    }
+
+    // Validate ownership of all unique IDs in one pass (3 queries total).
+    const uniqueGoalIds = [...new Set(proposed.map((a) => a.goalId).filter((id): id is number => id != null))];
+    const uniqueRoleIds = [...new Set(proposed.map((a) => a.roleId).filter((id): id is number => id != null))];
+    const uniqueActivityTypeIds = [...new Set(proposed.map((a) => a.activityTypeId).filter((id): id is number => id != null))];
+
+    try {
+      await assertOwnership(userId, {
+        goalIds: uniqueGoalIds,
+        roleIds: uniqueRoleIds,
+        activityTypeIds: uniqueActivityTypeIds,
+      });
+    } catch (err) {
+      if (err instanceof OwnershipError) {
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      }
+      throw err;
     }
 
     let deleted = 0;

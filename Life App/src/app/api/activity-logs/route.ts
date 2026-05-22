@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { activityLogs, activityTypes, activities, goals, goalRoles } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { assertOwnership, OwnershipError } from "@/lib/ownership";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -59,6 +60,18 @@ export async function POST(request: NextRequest) {
 
   if (!activityTypeId || !date || !durationMinutes) {
     return NextResponse.json({ error: "activityTypeId, date, and durationMinutes are required" }, { status: 400 });
+  }
+
+  try {
+    await assertOwnership(userId, {
+      activityTypeId,
+      goalId: goalId ?? null,
+    });
+  } catch (err) {
+    if (err instanceof OwnershipError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    throw err;
   }
 
   const [created] = await db.insert(activityLogs).values({

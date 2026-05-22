@@ -9,6 +9,7 @@ import {
   applyDeleteBridge,
   parseBridgedLogAction,
 } from "@/lib/activities-bridge";
+import { assertOwnership, OwnershipError } from "@/lib/ownership";
 
 export async function PATCH(
   request: NextRequest,
@@ -35,6 +36,22 @@ export async function PATCH(
       return NextResponse.json({ error: "bridgedLogAction must be 'delete' or 'unlink'" }, { status: 400 });
     }
     bridgedAction = parsed;
+  }
+
+  // Validate ownership of any incoming foreign key IDs before writing.
+  if (body.roleId !== undefined || body.goalId !== undefined || body.activityTypeId !== undefined) {
+    try {
+      await assertOwnership(userId, {
+        roleIds: body.roleId != null ? [body.roleId] : [],
+        goalId: body.goalId ?? null,
+        activityTypeId: body.activityTypeId ?? null,
+      });
+    } catch (err) {
+      if (err instanceof OwnershipError) {
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      }
+      throw err;
+    }
   }
 
   // Only keys listed below are written; omitted fields (e.g. sessionType on date-only PATCH) stay unchanged.

@@ -164,8 +164,15 @@ healthcheckTimeout = 120
 ```
 
 - The endpoint is **public** (no authentication required) so Railway can check it without a session.
-- It also triggers the daily SQLite auto-backup as a side effect.
 - The 120-second timeout accounts for the `apply-schema.js` run time on first boot.
+
+## Database Backups
+
+Daily SQLite backups are handled by `src/instrumentation.ts` (the Next.js server instrumentation hook), which runs `runDailyBackup()` once on process startup and every 24 hours thereafter. This replaces the previous approach of triggering backup from `GET /api/health`.
+
+- Backups are written to the `backups/` directory on the same volume as `life-app.db`.
+- The backup function is idempotent — it skips if today's backup file already exists.
+- Admins can also trigger a manual backup via `POST /api/admin/backup` (requires admin session).
 
 ---
 

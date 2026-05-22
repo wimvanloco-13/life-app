@@ -5,24 +5,8 @@ import { eq, and, isNull, type SQL } from "drizzle-orm";
 import { deriveQuadrant } from "@/lib/quadrants";
 import { auth } from "@/lib/auth";
 import { clampSessionsPerWeek, DEFAULT_SESSIONS_PER_WEEK } from "@/lib/goal-validation";
-
-async function attachRoles(goalIds: number[]) {
-  if (goalIds.length === 0) return new Map<number, { id: number; name: string; color: string }[]>();
-
-  const allGR = await db
-    .select({ goalId: goalRoles.goalId, roleId: roles.id, roleName: roles.name, roleColor: roles.color })
-    .from(goalRoles)
-    .innerJoin(roles, eq(goalRoles.roleId, roles.id));
-
-  const map = new Map<number, { id: number; name: string; color: string }[]>();
-  for (const row of allGR) {
-    if (!goalIds.includes(row.goalId)) continue;
-    const arr = map.get(row.goalId) ?? [];
-    arr.push({ id: row.roleId, name: row.roleName, color: row.roleColor });
-    map.set(row.goalId, arr);
-  }
-  return map;
-}
+import { attachRoles } from "@/lib/goal-roles";
+import { assertOwnership, OwnershipError, ParentGoalTypeError } from "@/lib/ownership";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -48,7 +32,7 @@ export async function GET(request: NextRequest) {
 
   const baseGoals = await db.select().from(goals).where(and(...conditions));
 
-  const roleMap = await attachRoles(baseGoals.map((g) => g.id));
+  const roleMap = await attachRoles(baseGoals.map((g) => g.id), userId);
 
   const activityTypeIds = baseGoals.map((g) => g.activityTypeId).filter((id): id is number => id != null);
   const activityTypeMap = new Map<number, { name: string; icon: string }>();
@@ -88,6 +72,22 @@ export async function POST(request: NextRequest) {
   }
   if (horizon === "monthly" && !month) {
     return NextResponse.json({ error: "Month is required for monthly goals" }, { status: 400 });
+  }
+
+  try {
+    await assertOwnership(userId, {
+      roleIds: roleIds ?? [],
+      activityTypeId: activityTypeId ?? null,
+      parentGoalId: parentGoalId ?? null,
+    });
+  } catch (err) {
+    if (err instanceof ParentGoalTypeError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    if (err instanceof OwnershipError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    throw err;
   }
 
   // FR-016: server-side clamp to [1, 7]. See clampSessionsPerWeek for the
