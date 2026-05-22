@@ -1,6 +1,6 @@
 ﻿# Life App -- Feature Roadmap
 
-> Last updated: 2026-05-16.
+> Last updated: 2026-05-22.
 
 ## Product Vision
 
@@ -633,6 +633,36 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 **Routes added**: `GET/POST /api/habits`, `PATCH/DELETE /api/habits/:id`, `PUT /api/habits/reorder`, `POST/DELETE /api/habit-logs`
 
 **Dependencies**: Friend Release (auth + per-user scoping).
+
+---
+
+### Library (Supporting Documentation)
+
+**Spec ID**: `supporting-documentation`
+**Status**: Built (complete)
+**Completed**: 2026-05-22
+
+**What it does**: A read-only reference section accessible from the sidebar. Five topics — Tennis, Climbing, Running, Habit Design, Breathing — each organised into categories of structured items. Every item has a clear What / Why / How / Duration breakdown. Users can bookmark any item and view all saved items in one place. Admin users can add, edit, delete, and reorder content from within the app without touching the database.
+
+**What has been built**:
+- **Schema**: Four new global tables: `library_topics`, `library_categories`, `library_items`, `library_bookmarks`. Content tables are intentionally not user-scoped (FR-001). Only `library_bookmarks` has a `user_id`. Unique index on `(user_id, item_id)` for bookmarks. All FK cascades on delete.
+- **Seed**: `scripts/seed-library-lib.cjs` is the single source of truth for all content (5 topics, 20 categories, 91 items). Idempotent — safe to re-run. Called automatically by `apply-schema.js` on every deploy (step 7).
+- **API (read-only)**: `GET /api/library/topics` (topic list), `GET /api/library/topics/:slug` (full nested topic with `isBookmarked` per item).
+- **API (bookmarks)**: `POST /api/library/bookmarks` (idempotent, always 201), `DELETE /api/library/bookmarks/:itemId` (idempotent, always 204), `GET /api/library/bookmarks` (all saved items joined with topic/category data).
+- **API (admin-only)**: `POST /topics/:slug/categories`, `PATCH/DELETE /categories/:id`, `POST /categories/:id/items`, `PATCH/DELETE /items/:id`, `PUT /categories/:id/reorder`. All return 403 for non-admins.
+- **Sidebar**: Library group with five topic entries and a Bookmarks link, separated by a `<Separator />`.
+- **Topic page** (`/library/:slug`): Two-column layout — content fills the left (`flex-1`), sticky 208px table-of-contents on the right. TOC uses `IntersectionObserver` to highlight the active category; clicking smooth-scrolls to the section. Layout-mirroring skeleton while loading.
+- **Item rows**: Type badge (amber for Concept, green for Protocol, orange for Exercise, muted for Tip), Fraunces title, structured What / Why / How / Duration dl. Bookmark toggle (optimistic, outline → filled).
+- **Bookmarks page** (`/library/bookmarks`): Items grouped by topic with topic icon headers. Optimistic removal on unbookmark. Empty state when nothing saved.
+- **Admin UI**: Trash icon per category header, edit pencil + delete + drag handle per item row, "Add item" link per category, "Add category" button at bottom of topic. `LibraryItemPanel` (right-side Sheet) for create/edit with field-length validation. `LibraryDeleteDialog` for confirmed deletion. Drag-to-reorder via `@dnd-kit/sortable` — optimistic state, persisted via `PUT /categories/:id/reorder`.
+
+**Tables added**: `library_topics`, `library_categories`, `library_items`, `library_bookmarks`
+
+**Routes added**: `GET /api/library/topics`, `GET /api/library/topics/:slug`, `GET/POST /api/library/bookmarks`, `DELETE /api/library/bookmarks/:itemId`, `POST /api/library/topics/:slug/categories`, `PATCH/DELETE /api/library/categories/:id`, `POST /api/library/categories/:id/items`, `PATCH/DELETE /api/library/items/:id`, `PUT /api/library/categories/:id/reorder`
+
+**PRs**: #30 (foundation), #31 (UI), #32 (bookmarks), #33 (admin), #34 (TOC layout)
+
+**Dependencies**: Friend Release (auth).
 
 ---
 
