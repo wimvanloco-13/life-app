@@ -4,6 +4,7 @@ import { activityLogs, activityTypes, activities, goals, goalRoles } from "@/db/
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { assertOwnership, OwnershipError } from "@/lib/ownership";
+import { safeParseMetrics } from "@/lib/activity-metrics";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
   filtered.sort((a, b) => b.date.localeCompare(a.date));
   filtered = filtered.slice(0, limit);
 
-  return NextResponse.json(filtered.map((w) => ({ ...w, metrics: JSON.parse(w.metrics) })));
+  return NextResponse.json(filtered.map((w) => ({ ...w, metrics: safeParseMetrics(w.metrics) })));
 }
 
 export async function POST(request: NextRequest) {
@@ -126,5 +127,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ...created, activityId: finalActivityId, metrics: JSON.parse(created.metrics) }, { status: 201 });
+  return NextResponse.json({ ...created, activityId: finalActivityId, metrics: safeParseMetrics(created.metrics) }, { status: 201 });
 }
