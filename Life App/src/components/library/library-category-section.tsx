@@ -4,11 +4,13 @@ import { LibraryItemRow } from "./library-item-row";
 
 interface LibraryCategorySectionProps {
   category: LibraryCategoryWithItems;
+  onBookmarkToggle?: (itemId: number, currentlyBookmarked: boolean) => void;
   addItemSlot?: ReactNode;
 }
 
 export function LibraryCategorySection({
   category,
+  onBookmarkToggle,
   addItemSlot,
 }: LibraryCategorySectionProps) {
   return (
@@ -23,7 +25,11 @@ export function LibraryCategorySection({
       {/* Items */}
       <div className="divide-y divide-border/50">
         {category.items.map((item) => (
-          <LibraryItemRow key={item.id} item={item} />
+          <LibraryItemRow
+            key={item.id}
+            item={item}
+            onBookmarkToggle={onBookmarkToggle}
+          />
         ))}
       </div>
 

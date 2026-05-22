@@ -546,8 +546,11 @@ export interface LibraryTopicWithCategories extends LibraryTopic {
 }
 
 export interface BookmarkedItem extends LibraryItem {
-  topicTitle: string;
+  isBookmarked: true;
+  topicId: number;
   topicSlug: string;
+  topicTitle: string;
+  topicIcon: string;
   categoryTitle: string;
 }
 

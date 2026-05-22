@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { LibraryTopicWithCategories } from "@/types";
+import type { LibraryTopicWithCategories, LibraryItemWithBookmark } from "@/types";
 import { LibraryCategorySection } from "./library-category-section";
 import { LibraryEmptyState } from "./library-empty-state";
 
@@ -58,6 +58,59 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
     fetchTopic();
   }, [fetchTopic]);
 
+  // Optimistic bookmark toggle: flip the item's isBookmarked in local state,
+  // then call the API. Revert if the API call fails.
+  const handleBookmarkToggle = useCallback(
+    async (itemId: number, currentlyBookmarked: boolean) => {
+      if (!topic) return;
+
+      // Optimistic update
+      setTopic((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          categories: prev.categories.map((cat) => ({
+            ...cat,
+            items: cat.items.map((item): LibraryItemWithBookmark =>
+              item.id === itemId
+                ? { ...item, isBookmarked: !currentlyBookmarked }
+                : item
+            ),
+          })),
+        };
+      });
+
+      try {
+        if (currentlyBookmarked) {
+          await fetch(`/api/library/bookmarks/${itemId}`, { method: "DELETE" });
+        } else {
+          await fetch("/api/library/bookmarks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemId }),
+          });
+        }
+      } catch {
+        // Revert on failure
+        setTopic((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            categories: prev.categories.map((cat) => ({
+              ...cat,
+              items: cat.items.map((item): LibraryItemWithBookmark =>
+                item.id === itemId
+                  ? { ...item, isBookmarked: currentlyBookmarked }
+                  : item
+              ),
+            })),
+          };
+        });
+      }
+    },
+    [topic]
+  );
+
   if (loading) return <LibraryTopicSkeleton />;
 
   if (notFound) {
@@ -103,7 +156,11 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
       ) : (
         <div className="space-y-10">
           {topic.categories.map((category) => (
-            <LibraryCategorySection key={category.id} category={category} />
+            <LibraryCategorySection
+              key={category.id}
+              category={category}
+              onBookmarkToggle={handleBookmarkToggle}
+            />
           ))}
         </div>
       )}

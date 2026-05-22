@@ -1,9 +1,12 @@
+"use client";
+
+import { Bookmark } from "lucide-react";
 import type { LibraryItemWithBookmark } from "@/types";
 import type { ReactNode } from "react";
 
 interface LibraryItemRowProps {
   item: LibraryItemWithBookmark;
-  bookmarkSlot?: ReactNode;
+  onBookmarkToggle?: (itemId: number, currentlyBookmarked: boolean) => void;
   adminSlot?: ReactNode;
 }
 
@@ -26,7 +29,7 @@ const TYPE_CONFIG = {
   },
 } as const;
 
-export function LibraryItemRow({ item, bookmarkSlot, adminSlot }: LibraryItemRowProps) {
+export function LibraryItemRow({ item, onBookmarkToggle, adminSlot }: LibraryItemRowProps) {
   const badge = TYPE_CONFIG[item.type];
 
   return (
@@ -44,7 +47,20 @@ export function LibraryItemRow({ item, bookmarkSlot, adminSlot }: LibraryItemRow
           </h3>
         </div>
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
-          {bookmarkSlot}
+          {onBookmarkToggle && (
+            <button
+              type="button"
+              onClick={() => onBookmarkToggle(item.id, item.isBookmarked)}
+              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={item.isBookmarked ? "Remove bookmark" : "Bookmark this item"}
+            >
+              <Bookmark
+                className="h-4 w-4 transition-all"
+                strokeWidth={1.8}
+                fill={item.isBookmarked ? "currentColor" : "none"}
+              />
+            </button>
+          )}
           {adminSlot}
         </div>
       </div>
