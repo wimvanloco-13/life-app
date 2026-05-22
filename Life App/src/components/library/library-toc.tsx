@@ -56,7 +56,7 @@ export function LibraryToc({ entries }: LibraryTocProps) {
   if (entries.length === 0) return null;
 
   return (
-    <nav aria-label="On this page">
+    <nav aria-label="On this page" className="pl-4 border-l border-border/50">
       <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 mb-3">
         On this page
       </p>
@@ -69,10 +69,10 @@ export function LibraryToc({ entries }: LibraryTocProps) {
                 type="button"
                 onClick={() => scrollTo(id)}
                 className={[
-                  "w-full text-left text-sm py-1.5 px-3 rounded-md transition-colors leading-snug",
+                  "w-full text-left text-sm py-1.5 leading-snug transition-colors",
                   isActive
-                    ? "text-foreground font-medium bg-muted/60"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
               >
                 {title}

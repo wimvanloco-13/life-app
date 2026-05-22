@@ -252,10 +252,8 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
 
         {/* ── Sticky TOC ── */}
         {tocEntries.length > 0 && (
-          <aside className="hidden lg:block w-52 shrink-0">
-            <div className="sticky top-8">
-              <LibraryToc entries={tocEntries} />
-            </div>
+          <aside className="hidden lg:block w-52 shrink-0 self-start sticky top-8">
+            <LibraryToc entries={tocEntries} />
           </aside>
         )}
       </div>
