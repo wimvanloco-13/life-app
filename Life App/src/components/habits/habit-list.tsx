@@ -178,6 +178,7 @@ export function HabitList() {
     const oldIndex = activeHabits.findIndex((h) => h.id === active.id);
     const newIndex = activeHabits.findIndex((h) => h.id === over.id);
     const reordered = arrayMove(activeHabits, oldIndex, newIndex);
+    const previous = activeHabits;
 
     setActiveHabits(reordered);
 
@@ -189,7 +190,7 @@ export function HabitList() {
       });
       if (!res.ok) throw new Error();
     } catch {
-      setActiveHabits(activeHabits);
+      setActiveHabits(previous);
       setReorderError("Could not save order. Please try again.");
       setTimeout(() => setReorderError(null), 5000);
     }

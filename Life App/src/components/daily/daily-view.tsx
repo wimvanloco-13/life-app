@@ -336,7 +336,15 @@ export function DailyView() {
     isCompleted: boolean,
     bridgedLogAction?: BridgedLogAction
   ) {
-    await fetch(`/api/activities/${id}`, {
+    // Optimistic update first so the UI responds immediately.
+    setActivities((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, isCompleted } : a))
+    );
+    setCarryForward((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, isCompleted } : a))
+    );
+
+    const res = await fetch(`/api/activities/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -344,19 +352,22 @@ export function DailyView() {
         ...(bridgedLogAction != null && { bridgedLogAction }),
       }),
     });
-    setActivities((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, isCompleted } : a))
-    );
-    setCarryForward((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, isCompleted } : a))
-    );
+
+    if (!res.ok) {
+      // Revert to previous value on failure.
+      setActivities((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, isCompleted: !isCompleted } : a))
+      );
+      setCarryForward((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, isCompleted: !isCompleted } : a))
+      );
+      return;
+    }
+
     // When the un-check or check-off bridge mutated activity_logs the
     // server-side tracker shifted; reload so the Completed Activities
     // panel below the schedule reflects the new state.
-    if (
-      bridgedLogAction != null ||
-      isCompleted === true
-    ) {
+    if (bridgedLogAction != null || isCompleted === true) {
       await fetchData();
     }
   }

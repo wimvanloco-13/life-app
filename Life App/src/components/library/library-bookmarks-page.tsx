@@ -82,7 +82,8 @@ export function LibraryBookmarksPage() {
       setItems((prev) => prev.filter((i) => i.id !== itemId));
 
       try {
-        await fetch(`/api/library/bookmarks/${itemId}`, { method: "DELETE" });
+        const res = await fetch(`/api/library/bookmarks/${itemId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("bookmark failed");
       } catch {
         // Revert on failure
         fetchBookmarks();

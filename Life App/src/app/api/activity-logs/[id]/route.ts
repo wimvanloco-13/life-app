@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { activityLogs } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
+import { safeParseMetrics } from "@/lib/activity-metrics";
 
 export async function PATCH(
   request: NextRequest,
@@ -34,7 +35,7 @@ export async function PATCH(
     .returning();
 
   if (!updated) return NextResponse.json({ error: "Activity log not found" }, { status: 404 });
-  return NextResponse.json({ ...updated, metrics: JSON.parse(updated.metrics) });
+  return NextResponse.json({ ...updated, metrics: safeParseMetrics(updated.metrics) });
 }
 
 export async function DELETE(

@@ -22,6 +22,7 @@ import type {
 import { LibraryCategorySection } from "./library-category-section";
 import { LibraryEmptyState } from "./library-empty-state";
 import { LibraryToc } from "./library-toc";
+import { LibraryAddCategoryDialog } from "./library-add-category-dialog";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Swords,
@@ -47,6 +48,7 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
+  const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
 
   const fetchTopic = useCallback(async () => {
     setLoading(true);
@@ -80,13 +82,15 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
       });
       try {
         if (currentlyBookmarked) {
-          await fetch(`/api/library/bookmarks/${itemId}`, { method: "DELETE" });
+          const res = await fetch(`/api/library/bookmarks/${itemId}`, { method: "DELETE" });
+          if (!res.ok) throw new Error("bookmark failed");
         } else {
-          await fetch("/api/library/bookmarks", {
+          const res = await fetch("/api/library/bookmarks", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ itemId }),
           });
+          if (!res.ok) throw new Error("bookmark failed");
         }
       } catch {
         setTopic((prev) => {
@@ -146,17 +150,19 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
   }, []);
 
   // ─── Admin: add category ──────────────────────────────────────────────────
-  async function handleAddCategory() {
-    const title = prompt("Category title:");
-    if (!title?.trim()) return;
+  function handleAddCategory() {
+    setAddCategoryDialogOpen(true);
+  }
+
+  async function submitAddCategory(title: string) {
     setAddingCategory(true);
     try {
       const res = await fetch(`/api/library/topics/${slug}/categories`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim() }),
+        body: JSON.stringify({ title }),
       });
-      if (!res.ok) return;
+      if (!res.ok) throw new Error("Failed to add category");
       const newCat = await res.json();
       setTopic((prev) => {
         if (!prev) return prev;
@@ -257,6 +263,13 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
           </aside>
         )}
       </div>
+
+      <LibraryAddCategoryDialog
+        open={addCategoryDialogOpen}
+        onOpenChange={setAddCategoryDialogOpen}
+        onConfirm={submitAddCategory}
+        isLoading={addingCategory}
+      />
     </div>
   );
 }
