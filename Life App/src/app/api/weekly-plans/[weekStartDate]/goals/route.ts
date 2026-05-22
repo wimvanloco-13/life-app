@@ -1,27 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { weeklyFocusGoals, weeklyPlans, goals, goalRoles, roles } from "@/db/schema";
+import { weeklyFocusGoals, weeklyPlans, goals } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { deriveQuadrant } from "@/lib/quadrants";
 import { auth } from "@/lib/auth";
-
-async function attachRoles(goalIds: number[]) {
-  if (goalIds.length === 0) return new Map<number, { id: number; name: string; color: string }[]>();
-
-  const allGR = await db
-    .select({ goalId: goalRoles.goalId, roleId: roles.id, roleName: roles.name, roleColor: roles.color })
-    .from(goalRoles)
-    .innerJoin(roles, eq(goalRoles.roleId, roles.id));
-
-  const map = new Map<number, { id: number; name: string; color: string }[]>();
-  for (const row of allGR) {
-    if (!goalIds.includes(row.goalId)) continue;
-    const arr = map.get(row.goalId) ?? [];
-    arr.push({ id: row.roleId, name: row.roleName, color: row.roleColor });
-    map.set(row.goalId, arr);
-  }
-  return map;
-}
+import { attachRoles } from "@/lib/goal-roles";
 
 export async function GET(
   _request: NextRequest,
@@ -42,7 +25,7 @@ export async function GET(
     .where(eq(weeklyFocusGoals.weeklyPlanId, plan[0].id));
 
   const goalIds = focusRows.map((r) => r.goalId);
-  const roleMap = await attachRoles(goalIds);
+  const roleMap = await attachRoles(goalIds, userId);
 
   return NextResponse.json(focusRows.map((row) => ({ id: row.goalId, focusId: row.focusId, title: row.title, description: row.description, quadrant: deriveQuadrant(row.targetDate), targetDate: row.targetDate, status: row.status, isCompleted: row.isCompleted, createdAt: row.createdAt, updatedAt: row.updatedAt, roles: roleMap.get(row.goalId) ?? [] })));
 }

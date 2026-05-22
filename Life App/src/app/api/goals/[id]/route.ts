@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { deriveQuadrant } from "@/lib/quadrants";
 import { auth } from "@/lib/auth";
 import { clampSessionsPerWeek } from "@/lib/goal-validation";
+import { assertOwnership, OwnershipError, ParentGoalTypeError } from "@/lib/ownership";
 
 export async function PATCH(
   request: NextRequest,
@@ -22,6 +23,28 @@ export async function PATCH(
   if (existing.length === 0) return NextResponse.json({ error: "Goal not found" }, { status: 404 });
 
   const body = await request.json();
+
+  // Validate ownership of any incoming foreign key IDs before writing.
+  // We validate the incoming body.roleIds (not the stored ones) because PATCH
+  // can replace the role set entirely.
+  if (body.roleIds !== undefined || body.activityTypeId !== undefined || body.parentGoalId !== undefined) {
+    try {
+      await assertOwnership(userId, {
+        roleIds: Array.isArray(body.roleIds) ? body.roleIds : undefined,
+        activityTypeId: body.activityTypeId ?? null,
+        parentGoalId: body.parentGoalId ?? null,
+      });
+    } catch (err) {
+      if (err instanceof ParentGoalTypeError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      if (err instanceof OwnershipError) {
+        return NextResponse.json({ error: err.message }, { status: 403 });
+      }
+      throw err;
+    }
+  }
+
   const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
 
   if (body.title !== undefined) updates.title = body.title.trim();
