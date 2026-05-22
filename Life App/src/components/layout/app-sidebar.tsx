@@ -12,6 +12,11 @@ import {
   Settings,
   LogOut,
   Users,
+  Swords,
+  Footprints,
+  BookOpen,
+  Wind,
+  Bookmark,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -26,6 +31,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "./theme-toggle";
 import { signOut, useSession } from "next-auth/react";
 
@@ -34,6 +40,14 @@ interface NavItem {
   href: string;
   icon: LucideIcon;
 }
+
+const LIBRARY_TOPICS: NavItem[] = [
+  { title: "Tennis",       href: "/library/tennis",       icon: Swords },
+  { title: "Climbing",     href: "/library/climbing",     icon: Mountain },
+  { title: "Running",      href: "/library/running",      icon: Footprints },
+  { title: "Habit Design", href: "/library/habit-design", icon: BookOpen },
+  { title: "Breathing",    href: "/library/breathing",    icon: Wind },
+];
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
@@ -96,6 +110,46 @@ export function AppSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+
+        {/* Library */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-widest text-muted-foreground/70 px-3 mb-1">
+            Library
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {LIBRARY_TOPICS.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href;
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton asChild isActive={active}>
+                      <Link href={item.href} className="gap-3">
+                        <Icon className="h-4 w-4 shrink-0" strokeWidth={active ? 2.5 : 1.8} />
+                        <span className="text-sm">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+              <Separator className="my-1" />
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/library/bookmarks"}
+                >
+                  <Link href="/library/bookmarks" className="gap-3">
+                    <Bookmark
+                      className="h-4 w-4 shrink-0"
+                      strokeWidth={pathname === "/library/bookmarks" ? 2.5 : 1.8}
+                    />
+                    <span className="text-sm">Bookmarks</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t p-2">
