@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { UserPlus, ShieldCheck, ShieldOff, Loader2, Check } from "lucide-react";
 
 interface User {
@@ -17,6 +19,9 @@ function formatDate(iso: string | null) {
 }
 
 export default function AdminUsersPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,6 +51,22 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  // Redirect non-admins before rendering any admin UI.
+  useEffect(() => {
+    if (status === "loading") return;
+    if (!session || session.user.role !== "admin") {
+      router.replace("/");
+    }
+  }, [session, status, router]);
+
+  if (status === "loading" || !session || session.user.role !== "admin") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();

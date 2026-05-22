@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ created: created.length, deleted, activities: created }, { status: 201 });
   } catch (error) {
-    console.error("Schedule apply error:", error);
     return NextResponse.json({ error: "Failed to apply schedule", details: String(error) }, { status: 500 });
   }
 }

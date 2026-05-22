@@ -34,6 +34,10 @@ export function RoleList() {
   const fetchRoles = useCallback(async () => {
     const url = showArchived ? "/api/roles?archived=true" : "/api/roles";
     const res = await fetch(url);
+    if (!res.ok) {
+      setLoading(false);
+      return;
+    }
     const data = await res.json();
     setRoles(data);
     setLoading(false);
