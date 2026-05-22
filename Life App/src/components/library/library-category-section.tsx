@@ -102,7 +102,7 @@ export function LibraryCategorySection({
   }
 
   return (
-    <section>
+    <section id={`category-${category.id}`}>
       {/* Sticky category header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/60 py-3 mb-1">
         <div className="flex items-center justify-between">

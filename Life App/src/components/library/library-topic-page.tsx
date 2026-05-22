@@ -21,6 +21,7 @@ import type {
 } from "@/types";
 import { LibraryCategorySection } from "./library-category-section";
 import { LibraryEmptyState } from "./library-empty-state";
+import { LibraryToc } from "./library-toc";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Swords,
@@ -187,90 +188,122 @@ export function LibraryTopicPage({ slug }: LibraryTopicPageProps) {
   const Icon = resolveIcon(topic.icon);
   const isEmpty = topic.categories.length === 0;
 
+  const tocEntries = topic.categories.map((c) => ({
+    id: `category-${c.id}`,
+    title: c.title,
+  }));
+
   return (
-    <div className="px-6 py-8 max-w-3xl animate-fade-in">
-      <header className="mb-10">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="rounded-xl bg-muted/60 p-2.5">
-            <Icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.6} />
-          </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            {topic.title}
-          </h1>
-        </div>
-        {topic.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-            {topic.description}
-          </p>
-        )}
-      </header>
+    <div className="px-6 py-8 animate-fade-in">
+      {/* Two-column: content left, sticky TOC right */}
+      <div className="flex gap-12 max-w-6xl">
+        {/* ── Main content ── */}
+        <div className="flex-1 min-w-0">
+          <header className="mb-10">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-xl bg-muted/60 p-2.5">
+                <Icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.6} />
+              </div>
+              <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+                {topic.title}
+              </h1>
+            </div>
+            {topic.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+                {topic.description}
+              </p>
+            )}
+          </header>
 
-      {isEmpty && !isAdmin ? (
-        <LibraryEmptyState
-          icon={Icon}
-          title="Nothing here yet"
-          description="Content for this topic hasn't been added yet."
-        />
-      ) : (
-        <div className="space-y-10">
-          {topic.categories.map((category) => (
-            <LibraryCategorySection
-              key={category.id}
-              category={category}
-              isAdmin={isAdmin}
-              onBookmarkToggle={handleBookmarkToggle}
-              onCategoryDeleted={handleCategoryDeleted}
-              onItemAdded={handleItemAdded}
-              onItemUpdated={handleItemUpdated}
+          {isEmpty && !isAdmin ? (
+            <LibraryEmptyState
+              icon={Icon}
+              title="Nothing here yet"
+              description="Content for this topic hasn't been added yet."
             />
-          ))}
+          ) : (
+            <div className="space-y-10">
+              {topic.categories.map((category) => (
+                <LibraryCategorySection
+                  key={category.id}
+                  category={category}
+                  isAdmin={isAdmin}
+                  onBookmarkToggle={handleBookmarkToggle}
+                  onCategoryDeleted={handleCategoryDeleted}
+                  onItemAdded={handleItemAdded}
+                  onItemUpdated={handleItemUpdated}
+                />
+              ))}
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={handleAddCategory}
-              disabled={addingCategory}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              Add category
-            </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleAddCategory}
+                  disabled={addingCategory}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add category
+                </button>
+              )}
+            </div>
           )}
         </div>
-      )}
+
+        {/* ── Sticky TOC ── */}
+        {tocEntries.length > 0 && (
+          <aside className="hidden lg:block w-52 shrink-0">
+            <div className="sticky top-8">
+              <LibraryToc entries={tocEntries} />
+            </div>
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
 
 function LibraryTopicSkeleton() {
   return (
-    <div className="px-6 py-8 max-w-3xl">
-      <div className="flex items-center gap-3 mb-3">
-        <Skeleton className="h-10 w-10 rounded-xl" />
-        <Skeleton className="h-8 w-40 rounded" />
-      </div>
-      <Skeleton className="h-4 w-72 rounded mb-10" />
-      {[0, 1].map((i) => (
-        <div key={i} className="mb-10">
-          <Skeleton className="h-4 w-32 rounded mb-4" />
-          {[0, 1, 2].map((j) => (
-            <div key={j} className="py-6 border-b border-border/50 last:border-0">
-              <div className="flex items-center gap-3 mb-4">
-                <Skeleton className="h-5 w-16 rounded-full" />
-                <Skeleton className="h-5 w-48 rounded" />
-              </div>
-              <div className="space-y-3">
-                <Skeleton className="h-3 w-10 rounded" />
-                <Skeleton className="h-4 w-full rounded" />
-                <Skeleton className="h-4 w-5/6 rounded" />
-                <Skeleton className="h-3 w-10 rounded mt-2" />
-                <Skeleton className="h-4 w-full rounded" />
-                <Skeleton className="h-4 w-4/5 rounded" />
-              </div>
+    <div className="px-6 py-8">
+      <div className="flex gap-12 max-w-6xl">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 mb-3">
+            <Skeleton className="h-10 w-10 rounded-xl" />
+            <Skeleton className="h-8 w-40 rounded" />
+          </div>
+          <Skeleton className="h-4 w-72 rounded mb-10" />
+          {[0, 1].map((i) => (
+            <div key={i} className="mb-10">
+              <Skeleton className="h-4 w-32 rounded mb-4" />
+              {[0, 1, 2].map((j) => (
+                <div key={j} className="py-6 border-b border-border/50 last:border-0">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                    <Skeleton className="h-5 w-48 rounded" />
+                  </div>
+                  <div className="space-y-3">
+                    <Skeleton className="h-3 w-10 rounded" />
+                    <Skeleton className="h-4 w-full rounded" />
+                    <Skeleton className="h-4 w-5/6 rounded" />
+                    <Skeleton className="h-3 w-10 rounded mt-2" />
+                    <Skeleton className="h-4 w-full rounded" />
+                    <Skeleton className="h-4 w-4/5 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
         </div>
-      ))}
+        <div className="hidden lg:block w-52 shrink-0">
+          <div className="sticky top-8 space-y-2">
+            <Skeleton className="h-3 w-20 rounded" />
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-7 w-full rounded-md" />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
