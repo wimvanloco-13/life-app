@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import {
   Sun,
   CalendarDays,
@@ -17,6 +18,7 @@ import {
   BookOpen,
   Wind,
   Bookmark,
+  ShoppingBag,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -32,8 +34,10 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { signOut, useSession } from "next-auth/react";
+import { LogBigPurchaseDialog } from "@/components/budget/log-big-purchase-dialog";
 
 interface NavItem {
   title: string;
@@ -72,16 +76,54 @@ export function AppSidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "admin";
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [momentThreshold, setMomentThreshold] = useState(200);
+
+  const fetchThreshold = useCallback(async () => {
+    const res = await fetch("/api/budget-settings");
+    if (res.ok) {
+      const data = await res.json();
+      setMomentThreshold(data.momentThreshold ?? 200);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.all([fetchThreshold()]);
+  }, [fetchThreshold]);
+
+  function handleSaved() {
+    // Notify the budget dashboard targets panel to refresh parked count
+    window.dispatchEvent(new CustomEvent("moment-log-saved"));
+  }
 
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-6 py-5">
-        <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
-          Life App
-        </h1>
-        <p className="text-[11px] text-muted-foreground tracking-wide uppercase mt-0.5">
-          Put First Things First
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight">
+              Life App
+            </h1>
+            <p className="text-[11px] text-muted-foreground tracking-wide uppercase mt-0.5">
+              Put First Things First
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDialogOpen(true)}
+            title="Log a big purchase"
+            className="shrink-0 h-8 w-8"
+          >
+            <ShoppingBag className="h-4 w-4" />
+          </Button>
+        </div>
+        <LogBigPurchaseDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          momentThreshold={momentThreshold}
+          onSaved={handleSaved}
+        />
       </SidebarHeader>
 
       <SidebarContent className="pt-2">

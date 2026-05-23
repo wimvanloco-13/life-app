@@ -339,6 +339,22 @@ const createStatements = [
   // ─── Library ───────────────────────────────────────────────────────────────
   // Content tables are global (no user_id). Only library_bookmarks is per-user.
 
+  `CREATE TABLE IF NOT EXISTS moment_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    user_id TEXT NOT NULL DEFAULT '',
+    date TEXT NOT NULL,
+    amount REAL NOT NULL,
+    description TEXT NOT NULL,
+    category_id INTEGER REFERENCES spending_categories(id),
+    spending_entry_id INTEGER REFERENCES spending_entries(id),
+    scorecard_answer TEXT,
+    utility_status_answer TEXT,
+    six_month_answer TEXT,
+    decision TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+
   `CREATE TABLE IF NOT EXISTS library_topics (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     slug TEXT NOT NULL UNIQUE,
