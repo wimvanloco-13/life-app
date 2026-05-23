@@ -13,13 +13,13 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh">
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-10 items-center px-4 md:hidden">
+      <SidebarInset className="min-h-0 overflow-hidden">
+        <header className="flex h-10 shrink-0 items-center px-4 md:hidden">
           <SidebarTrigger />
         </header>
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto">
           {children}
         </main>
         <BackupTrigger />

@@ -511,15 +511,16 @@ try {
 // ─── 3. Seed new default spending categories for existing users ──────────────
 // Idempotent — checks before inserting, safe to re-run on every deploy.
 
-const INVESTING_LADDER_NAMES = [
-  'pensioensparen',
-  'langetermijnsparen',
-  'etf_investment',
-  'employer_pension',
-  '2nd_pillar',
-  'consumer_credit',
-  'credit_card_debt',
+const INVESTING_LADDER_CATEGORIES = [
+  { name: 'pensioensparen',     icon: 'piggy-bank',      color: '#F59E0B' },
+  { name: 'langetermijnsparen', icon: 'landmark',        color: '#10B981' },
+  { name: 'etf_investment',     icon: 'trending-up',     color: '#3B82F6' },
+  { name: 'employer_pension',   icon: 'briefcase',       color: '#8B5CF6' },
+  { name: '2nd_pillar',         icon: 'shield',          color: '#EC4899' },
+  { name: 'consumer_credit',    icon: 'credit-card',     color: '#F97316' },
+  { name: 'credit_card_debt',   icon: 'alert-triangle',  color: '#EF4444' },
 ];
+const INVESTING_LADDER_NAMES = INVESTING_LADDER_CATEGORIES.map(c => c.name);
 
 const categoryUsers = db.prepare("SELECT DISTINCT user_id FROM spending_categories").all();
 for (const { user_id } of categoryUsers) {
@@ -542,11 +543,16 @@ for (const { user_id } of categoryUsers) {
     `SELECT name FROM spending_categories WHERE user_id = ? AND name IN (${INVESTING_LADDER_NAMES.map(() => '?').join(',')})`
   ).all(user_id, ...INVESTING_LADDER_NAMES).map(r => r.name);
 
-  for (const ladderName of INVESTING_LADDER_NAMES) {
-    if (!existingLadder.includes(ladderName)) {
+  for (const { name, icon, color } of INVESTING_LADDER_CATEGORIES) {
+    if (!existingLadder.includes(name)) {
       db.prepare("INSERT INTO spending_categories (name, icon, color, bucket, user_id) VALUES (?, ?, ?, ?, ?)")
-        .run(ladderName, 'trending-up', '#6366F1', 'invest', user_id);
-      console.log("apply-schema: seeded investing ladder category", ladderName, "for user", user_id);
+        .run(name, icon, color, 'invest', user_id);
+      console.log("apply-schema: seeded investing ladder category", name, "for user", user_id);
+    } else {
+      // Fix existing rows that were seeded with the old generic icon/color
+      db.prepare(
+        "UPDATE spending_categories SET icon = ?, color = ? WHERE name = ? AND user_id = ? AND icon = 'trending-up' AND color = '#6366F1'"
+      ).run(icon, color, name, user_id);
     }
   }
 }
