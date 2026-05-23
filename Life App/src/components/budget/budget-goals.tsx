@@ -34,42 +34,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatEur } from "@/lib/currency";
 import { format, parseISO } from "date-fns";
-import type { BudgetSettings, PlannedExpense, SpendingCategory } from "@/types";
-import { MoreHorizontal, Plus, Pencil } from "lucide-react";
+import type { PlannedExpense, SpendingCategory } from "@/types";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { LucideIcon } from "@/components/ui/lucide-icon";
 
-const MONTHS = [
-  "01",
-  "02",
-  "03",
-  "04",
-  "05",
-  "06",
-  "07",
-  "08",
-  "09",
-  "10",
-  "11",
-  "12",
-];
+const MONTHS = ["01","02","03","04","05","06","07","08","09","10","11","12"];
 
 export function BudgetGoals() {
   const currentYear = new Date().getFullYear();
 
-  // Savings goal state
-  const [settings, setSettings] = useState<BudgetSettings | null>(null);
-  const [savingsProgress, setSavingsProgress] = useState<{
-    saved: number;
-    total: number;
-    percentage: number;
-  } | null>(null);
-  const [editingGoal, setEditingGoal] = useState(false);
-  const [goalAmount, setGoalAmount] = useState("");
-  const [goalDate, setGoalDate] = useState("");
-  const [goalStartingBalance, setGoalStartingBalance] = useState("");
-  const [savingGoal, setSavingGoal] = useState(false);
-
-  // Planned expenses state
   const [expenses, setExpenses] = useState<PlannedExpense[]>([]);
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,31 +53,6 @@ export function BudgetGoals() {
   const [month, setMonth] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [notes, setNotes] = useState("");
-
-  const fetchSettings = useCallback(async () => {
-    const res = await fetch("/api/budget-settings");
-    const data = await res.json();
-    setSettings(data);
-    setGoalAmount(
-      data.savingsGoalTotal != null ? String(data.savingsGoalTotal) : ""
-    );
-    setGoalDate(data.savingsGoalTargetDate ?? "");
-    setGoalStartingBalance(String(data.savingsStartingBalance ?? 0));
-  }, []);
-
-  const fetchSavingsProgress = useCallback(async () => {
-    const res = await fetch("/api/budget/summary");
-    const data = await res.json();
-    if (data.savingsGoal) {
-      setSavingsProgress({
-        saved: data.savingsGoal.saved,
-        total: data.savingsGoal.total,
-        percentage: data.savingsGoal.percentage,
-      });
-    } else {
-      setSavingsProgress(null);
-    }
-  }, []);
 
   const fetchExpenses = useCallback(async () => {
     const res = await fetch(`/api/planned-expenses?year=${currentYear}`);
@@ -120,38 +68,8 @@ export function BudgetGoals() {
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      fetchSettings(),
-      fetchSavingsProgress(),
-      fetchExpenses(),
-      fetchCategories(),
-    ]).finally(() => setLoading(false));
-  }, [fetchSettings, fetchSavingsProgress, fetchExpenses, fetchCategories]);
-
-  async function handleSaveGoal() {
-    if (!settings) return;
-    const amt = goalAmount ? parseFloat(goalAmount) : null;
-    if (amt != null && (isNaN(amt) || amt < 0)) return;
-
-    setSavingGoal(true);
-    const res = await fetch("/api/budget-settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        savingsGoalTotal: amt,
-        savingsGoalTargetDate: goalDate && /^\d{4}-\d{2}-\d{2}$/.test(goalDate)
-          ? goalDate
-          : null,
-        savingsStartingBalance: parseFloat(goalStartingBalance) || 0,
-      }),
-    });
-    setSavingGoal(false);
-    if (res.ok) {
-      setEditingGoal(false);
-      fetchSettings();
-      fetchSavingsProgress();
-    }
-  }
+    Promise.all([fetchExpenses(), fetchCategories()]).finally(() => setLoading(false));
+  }, [fetchExpenses, fetchCategories]);
 
   function openAddExpense() {
     setEditingId(null);
@@ -183,40 +101,28 @@ export function BudgetGoals() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
-          amount: amt,
-          month,
+          name: name.trim(), amount: amt, month,
           categoryId: categoryId ? Number(categoryId) : null,
           notes: notes.trim() || null,
         }),
       });
-      if (res.ok) {
-        setDialogOpen(false);
-        fetchExpenses();
-      }
+      if (res.ok) { setDialogOpen(false); fetchExpenses(); }
     } else {
       const res = await fetch("/api/planned-expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: name.trim(),
-          amount: amt,
-          month,
+          name: name.trim(), amount: amt, month,
           categoryId: categoryId ? Number(categoryId) : null,
           notes: notes.trim() || null,
         }),
       });
-      if (res.ok) {
-        setDialogOpen(false);
-        fetchExpenses();
-      }
+      if (res.ok) { setDialogOpen(false); fetchExpenses(); }
     }
   }
 
   async function handleDeleteExpense(id: number) {
-    const res = await fetch(`/api/planned-expenses/${id}`, {
-      method: "DELETE",
-    });
+    const res = await fetch(`/api/planned-expenses/${id}`, { method: "DELETE" });
     if (res.ok) fetchExpenses();
   }
 
@@ -228,152 +134,22 @@ export function BudgetGoals() {
   const yearlyTotal = expenses.reduce((s, e) => s + e.amount, 0);
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <p className="text-muted-foreground py-8 text-center">Loading...</p>
-      </div>
-    );
+    return <p className="text-muted-foreground py-8 text-center">Loading...</p>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Section 1: Savings Goal */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Savings Goal</CardTitle>
-          <CardDescription>
-            Track progress toward your savings target
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {settings && (
-            <>
-              {editingGoal ? (
-                <div className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Target amount (€)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={goalAmount}
-                        onChange={(e) => setGoalAmount(e.target.value)}
-                        placeholder="e.g. 10000"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Target date</Label>
-                      <Input
-                        type="date"
-                        value={goalDate}
-                        onChange={(e) => setGoalDate(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Existing savings (€)</Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={goalStartingBalance}
-                        onChange={(e) => setGoalStartingBalance(e.target.value)}
-                        placeholder="0"
-                      />
-                      <p className="text-xs text-muted-foreground">Money you already had saved before using this app</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleSaveGoal}
-                      disabled={savingGoal}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setEditingGoal(false);
-                        setGoalAmount(
-                          settings.savingsGoalTotal != null
-                            ? String(settings.savingsGoalTotal)
-                            : ""
-                        );
-                        setGoalDate(settings.savingsGoalTargetDate ?? "");
-                        setGoalStartingBalance(String(settings.savingsStartingBalance ?? 0));
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">
-                        Target:{" "}
-                        {settings.savingsGoalTotal != null
-                          ? formatEur(settings.savingsGoalTotal)
-                          : "Not set"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        By:{" "}
-                        {settings.savingsGoalTargetDate
-                          ? format(
-                              parseISO(settings.savingsGoalTargetDate),
-                              "PPP"
-                            )
-                          : "Not set"}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingGoal(true)}
-                    >
-                      <Pencil className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  </div>
-                  {savingsProgress && settings.savingsGoalTotal != null && settings.savingsGoalTotal > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>
-                          Current: {formatEur(savingsProgress.saved)} /{" "}
-                          {formatEur(savingsProgress.total)}
-                        </span>
-                        <span>{savingsProgress.percentage}%</span>
-                      </div>
-                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-primary transition-all"
-                          style={{
-                            width: `${Math.min(100, savingsProgress.percentage)}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 2: Planned Expenses */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
             <CardTitle>Planned Expenses</CardTitle>
             <CardDescription>
-              One-off expenses planned for {currentYear}
+              One-off and annual costs planned for {currentYear}
             </CardDescription>
           </div>
           <Button onClick={openAddExpense} size="sm">
             <Plus className="h-4 w-4 mr-1" />
-            Add Planned Expense
+            Add
           </Button>
         </CardHeader>
         <CardContent>
@@ -384,7 +160,7 @@ export function BudgetGoals() {
           ) : (
             <div className="space-y-4">
               <div className="rounded-md border overflow-hidden">
-                <div className="grid grid-cols-[1fr_auto_auto_1fr_1fr_auto] gap-4 px-4 py-3 bg-muted/50 text-sm font-medium">
+                <div className="grid grid-cols-[1fr_auto_auto_1fr_1fr_auto] gap-4 px-4 py-3 bg-muted/50 text-xs font-medium text-muted-foreground">
                   <div>Name</div>
                   <div className="text-right">Amount</div>
                   <div>Month</div>
@@ -395,14 +171,12 @@ export function BudgetGoals() {
                 {expenses.map((exp) => (
                   <div
                     key={exp.id}
-                    className="grid grid-cols-[1fr_auto_auto_1fr_1fr_auto] gap-4 px-4 py-3 border-t items-center"
+                    className="grid grid-cols-[1fr_auto_auto_1fr_1fr_auto] gap-4 px-4 py-3 border-t items-center text-sm"
                   >
                     <div className="font-medium">{exp.name}</div>
                     <div className="text-right">{formatEur(exp.amount)}</div>
-                    <div>
-                      {format(parseISO(exp.month + "-01"), "MMM yyyy")}
-                    </div>
-                    <div className="text-muted-foreground text-sm flex items-center gap-1.5">
+                    <div>{format(parseISO(exp.month + "-01"), "MMM yyyy")}</div>
+                    <div className="text-muted-foreground flex items-center gap-1.5">
                       {exp.categoryName ? (
                         <>
                           <LucideIcon name={exp.categoryIcon ?? "package"} size="sm" />
@@ -410,7 +184,7 @@ export function BudgetGoals() {
                         </>
                       ) : "—"}
                     </div>
-                    <div className="text-muted-foreground text-sm truncate max-w-[120px]">
+                    <div className="text-muted-foreground truncate max-w-[120px]">
                       {exp.notes ?? "—"}
                     </div>
                     <DropdownMenu>
@@ -420,13 +194,11 @@ export function BudgetGoals() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => openEditExpense(exp)}
-                        >
+                        <DropdownMenuItem onClick={() => openEditExpense(exp)}>
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
+                          variant="destructive"
                           onClick={() => handleDeleteExpense(exp.id)}
                         >
                           Delete
@@ -437,7 +209,7 @@ export function BudgetGoals() {
                 ))}
               </div>
               <div className="flex justify-end pt-2 border-t">
-                <span className="font-semibold">
+                <span className="font-semibold text-sm">
                   Yearly total: {formatEur(yearlyTotal)}
                 </span>
               </div>
@@ -459,15 +231,13 @@ export function BudgetGoals() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Christmas gifts"
+                placeholder="e.g. Car service"
               />
             </div>
             <div className="space-y-2">
               <Label>Amount (€)</Label>
               <Input
-                type="number"
-                min={0}
-                step={0.01}
+                type="number" min={0} step={0.01}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
@@ -497,7 +267,10 @@ export function BudgetGoals() {
                   <SelectItem value="">None</SelectItem>
                   {categories.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
-                      <span className="flex items-center gap-2"><LucideIcon name={c.icon} size="sm" />{c.name}</span>
+                      <span className="flex items-center gap-2">
+                        <LucideIcon name={c.icon} size="sm" />
+                        {c.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -505,23 +278,13 @@ export function BudgetGoals() {
             </div>
             <div className="space-y-2">
               <Label>Notes (optional)</Label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-              />
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingId != null ? "Save" : "Add"}
-              </Button>
+              <Button type="submit">{editingId != null ? "Save" : "Add"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

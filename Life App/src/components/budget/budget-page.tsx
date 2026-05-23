@@ -81,7 +81,7 @@ export function BudgetPage() {
           <TabsTrigger value="income">Income</TabsTrigger>
           <TabsTrigger value="fixed">Fixed Costs</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="goals">Budget Goals</TabsTrigger>
+          <TabsTrigger value="goals">Planned Expenses</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-6">
