@@ -1152,27 +1152,34 @@ The `GET /api/budget-settings` and `PATCH /api/budget-settings` routes now inclu
 ```json
 {
   "buckets": [
-    { "key": "fixed", "label": "Fixed", "targetPct": 55, "actualPct": 58.2, "actualAmount": 2100 },
-    { "key": "invest", "label": "Invest", "targetPct": 10, "actualPct": 8.1, "actualAmount": 290 },
-    { "key": "save", "label": "Save", "targetPct": 10, "actualPct": 5.4, "actualAmount": 195 },
-    { "key": "guilt_free", "label": "Guilt-Free", "targetPct": 25, "actualPct": 28.3, "actualAmount": 1020 }
+    { "key": "fixed",       "label": "Fixed",       "targetPct": 55,   "actualPct": 58.2, "actualAmount": 2100 },
+    { "key": "invest",      "label": "Invest",      "targetPct": 10,   "actualPct": 8.1,  "actualAmount": 290  },
+    { "key": "save",        "label": "Save",        "targetPct": 10,   "actualPct": 5.4,  "actualAmount": 195  },
+    { "key": "guilt_free",  "label": "Guilt-Free",  "targetPct": 25,   "actualPct": 28.3, "actualAmount": 1020 },
+    { "key": "unassigned",  "label": "Unassigned",  "targetPct": null, "actualPct": 5.0,  "actualAmount": 180  }
   ],
   "investingLadder": [
-    { "slug": "pensioensparen", "label": "Pensioensparen", "filled": true, "amount": 87.50 },
-    { "slug": "langetermijnsparen", "label": "Langetermijnsparen", "filled": false, "amount": 0 }
+    { "key": "emergency_cash",     "label": "Emergency Cash (3 months)",          "filled": true,  "categoryMapped": true  },
+    { "key": "credit_card_debt",   "label": "Pay off credit card debt",           "filled": false, "categoryMapped": false },
+    { "key": "consumer_credit",    "label": "Pay off consumer credit",            "filled": true,  "categoryMapped": true  },
+    { "key": "employer_pension",   "label": "Max employer pension / 2nd pillar", "filled": false, "categoryMapped": false },
+    { "key": "pensioensparen",     "label": "Pensioensparen (\u20ac1,350/yr)",         "filled": true,  "categoryMapped": true  },
+    { "key": "langetermijnsparen", "label": "Langetermijnsparen (\u20ac2,450/yr)",     "filled": false, "categoryMapped": false },
+    { "key": "etf_investment",     "label": "Broad ETF investment (VT/IWDA)",    "filled": false, "categoryMapped": false }
   ],
   "target25x": {
-    "annualSpending": 36000,
-    "statePensionOffset": 15000,
-    "annualGap": 21000,
-    "target": 525000
+    "computedAnnualSpending": 36000,
+    "overrideAnnualSpending": null,
+    "activeAnnualSpending": 36000,
+    "target": 900000,
+    "adjustedTarget": 525000
   }
 }
 ```
 
-- `buckets`: actual % computed against monthly income. Unassigned spending is surfaced separately.
-- `investingLadder`: 7 rungs derived from category-to-rung mapping and actual spending this month.
-- `target25x`: computed by `computeTarget25x()` in `src/lib/budget-computations.ts`. If `targetAnnualSpending` is set in settings, it overrides the computed annual spending from spending entries.
+- `buckets`: `BucketActual[]` — actual % computed against monthly income. Unassigned spending is surfaced as a fifth entry with `key: "unassigned"` and `targetPct: null`.
+- `investingLadder`: `InvestingLadderRung[]` — 7 rungs, each with `key`, `label`, `filled`, `categoryMapped`. Most rungs are `filled` when the user has a spending category with the matching canonical name assigned to the `invest` bucket. Exception: `emergency_cash` is `filled` when `computedSaved >= 3 × avgMonthlyFixedCosts` (savings vs. 3 months of fixed costs; no category mapping needed).
+- `target25x`: `Target25x` — computed by `computeTarget25x()` in `src/lib/budget-computations.ts`. `target` = 25 × `activeAnnualSpending`. `adjustedTarget` = 25 × max(`activeAnnualSpending` − `statePensionAnnualAmount`, 0). `activeAnnualSpending` uses `overrideAnnualSpending` from settings when set, otherwise `computedAnnualSpending` from current-month spending entries × 12.
 
 ---
 

@@ -648,7 +648,7 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 
 **What has been built**:
 - **Schema**: Four new global tables: `library_topics`, `library_categories`, `library_items`, `library_bookmarks`. Content tables are intentionally not user-scoped (FR-001). Only `library_bookmarks` has a `user_id`. Unique index on `(user_id, item_id)` for bookmarks. All FK cascades on delete.
-- **Seed**: `scripts/seed-library-lib.cjs` is the single source of truth for all content (5 topics, 20 categories, 91 items). Idempotent — safe to re-run. Called automatically by `apply-schema.js` on every deploy (step 7).
+- **Seed**: `scripts/seed-library-lib.cjs` is the single source of truth for all content (6 topics, 21 categories, 97 items — including the Budget topic added in Budget Expansion). Idempotent — safe to re-run. Called automatically by `apply-schema.js` on every deploy (step 7).
 - **API (read-only)**: `GET /api/library/topics` (topic list), `GET /api/library/topics/:slug` (full nested topic with `isBookmarked` per item).
 - **API (bookmarks)**: `POST /api/library/bookmarks` (idempotent, always 201), `DELETE /api/library/bookmarks/:itemId` (idempotent, always 204), `GET /api/library/bookmarks` (all saved items joined with topic/category data).
 - **API (admin-only)**: `POST /topics/:slug/categories`, `PATCH/DELETE /categories/:id`, `POST /categories/:id/items`, `PATCH/DELETE /items/:id`, `PUT /categories/:id/reorder`. All return 403 for non-admins.
@@ -711,7 +711,7 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 *Phase 1 — Foundation Dashboard (PR #40)*
 - Four Sethi-style income buckets (Fixed, Invest, Save, Guilt-Free) with per-bucket % targets, actual vs. target display, and unassigned-spending warning
 - Bucket assignment column on the Categories tab (optimistic UI with rollback)
-- Belgian investing ladder: 7 vertical rungs (employer match, high-interest debt, pensioensparen, langetermijnsparen, ETF investment, 2nd pillar, consumer/credit-card debt), filled/unfilled status from category mapping
+- Belgian investing ladder: 7 vertical rungs (emergency cash buffer, credit-card debt, consumer credit, employer pension / 2nd pillar, pensioensparen, langetermijnsparen, ETF investment), filled/unfilled status from category mapping (emergency_cash uses savings vs. 3× fixed costs)
 - 25× FI card: computes target portfolio as `25 × (annual spending − state pension)`; inline edit form for overriding annual spending and state pension amount
 - True expenses strip: 12-month horizontal view of planned expenses for the current year
 - Income helper text: clarifies that `incomeEntries.amount` is net (after taxes and social security)
