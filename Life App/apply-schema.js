@@ -397,6 +397,11 @@ const alterStatements = [
   `ALTER TABLE goals ADD COLUMN preferred_days TEXT`,
   `ALTER TABLE goals ADD COLUMN preferred_time_slot TEXT`,
   `ALTER TABLE budget_settings ADD COLUMN savings_starting_balance REAL DEFAULT 0`,
+  `ALTER TABLE budget_settings ADD COLUMN bucket_targets TEXT`,
+  `ALTER TABLE budget_settings ADD COLUMN moment_threshold REAL DEFAULT 200`,
+  `ALTER TABLE budget_settings ADD COLUMN target_annual_spending REAL`,
+  `ALTER TABLE budget_settings ADD COLUMN state_pension_annual_amount REAL`,
+  `ALTER TABLE spending_categories ADD COLUMN bucket TEXT`,
   `ALTER TABLE training_plans ADD COLUMN training_sessions_per_week INTEGER`,
   `ALTER TABLE training_plans ADD COLUMN supplemental_sessions_per_week INTEGER`,
   `ALTER TABLE training_plans ADD COLUMN training_preferred_days TEXT DEFAULT '[]'`,
@@ -490,6 +495,16 @@ try {
 // ─── 3. Seed new default spending categories for existing users ──────────────
 // Idempotent — checks before inserting, safe to re-run on every deploy.
 
+const INVESTING_LADDER_NAMES = [
+  'pensioensparen',
+  'langetermijnsparen',
+  'etf_investment',
+  'employer_pension',
+  '2nd_pillar',
+  'consumer_credit',
+  'credit_card_debt',
+];
+
 const categoryUsers = db.prepare("SELECT DISTINCT user_id FROM spending_categories").all();
 for (const { user_id } of categoryUsers) {
   const existing = db.prepare(
@@ -504,6 +519,19 @@ for (const { user_id } of categoryUsers) {
     db.prepare("INSERT INTO spending_categories (name, icon, color, user_id) VALUES (?, ?, ?, ?)")
       .run('Savings Withdrawal', 'arrow-up-from-line', '#F59E0B', user_id);
     console.log("apply-schema: seeded 'Savings Withdrawal' category for user", user_id);
+  }
+
+  // Seed investing-ladder categories (hidden by default; users can assign bucket later)
+  const existingLadder = db.prepare(
+    `SELECT name FROM spending_categories WHERE user_id = ? AND name IN (${INVESTING_LADDER_NAMES.map(() => '?').join(',')})`
+  ).all(user_id, ...INVESTING_LADDER_NAMES).map(r => r.name);
+
+  for (const ladderName of INVESTING_LADDER_NAMES) {
+    if (!existingLadder.includes(ladderName)) {
+      db.prepare("INSERT INTO spending_categories (name, icon, color, bucket, user_id) VALUES (?, ?, ?, ?, ?)")
+        .run(ladderName, 'trending-up', '#6366F1', 'invest', user_id);
+      console.log("apply-schema: seeded investing ladder category", ladderName, "for user", user_id);
+    }
   }
 }
 

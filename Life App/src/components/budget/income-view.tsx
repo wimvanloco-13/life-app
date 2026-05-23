@@ -233,6 +233,9 @@ export function IncomeView({ month }: IncomeViewProps) {
                     : setAmount(e.target.value)
                 }
               />
+              <p className="text-xs text-muted-foreground">
+                Enter your monthly net income (after taxes and social security).
+              </p>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox

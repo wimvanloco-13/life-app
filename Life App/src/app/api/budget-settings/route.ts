@@ -33,6 +33,24 @@ export async function PATCH(request: NextRequest) {
   if (body.savingsGoalTotal !== undefined) updates.savingsGoalTotal = body.savingsGoalTotal == null ? null : Number(body.savingsGoalTotal);
   if (body.savingsGoalTargetDate !== undefined) updates.savingsGoalTargetDate = body.savingsGoalTargetDate == null ? null : String(body.savingsGoalTargetDate);
   if (body.savingsStartingBalance !== undefined) updates.savingsStartingBalance = body.savingsStartingBalance == null ? 0 : Number(body.savingsStartingBalance);
+  if (body.bucketTargets !== undefined) {
+    if (body.bucketTargets === null) {
+      updates.bucketTargets = null;
+    } else {
+      const bt = body.bucketTargets as Record<string, unknown>;
+      const keys = ["fixed", "invest", "save", "guilt_free"] as const;
+      for (const k of keys) {
+        const v = Number(bt[k]);
+        if (!Number.isFinite(v) || v < 0 || v > 100) {
+          return NextResponse.json({ error: `bucketTargets.${k} must be a number between 0 and 100` }, { status: 400 });
+        }
+      }
+      updates.bucketTargets = JSON.stringify({ fixed: Number(bt.fixed), invest: Number(bt.invest), save: Number(bt.save), guilt_free: Number(bt.guilt_free) });
+    }
+  }
+  if (body.momentThreshold !== undefined) updates.momentThreshold = body.momentThreshold == null ? 200 : Math.max(0, Number(body.momentThreshold));
+  if (body.targetAnnualSpending !== undefined) updates.targetAnnualSpending = body.targetAnnualSpending == null ? null : Math.max(0, Number(body.targetAnnualSpending));
+  if (body.statePensionAnnualAmount !== undefined) updates.statePensionAnnualAmount = body.statePensionAnnualAmount == null ? null : Math.max(0, Number(body.statePensionAnnualAmount));
 
   const [updated] = await db.update(budgetSettings).set(updates).where(and(eq(budgetSettings.id, settings.id), eq(budgetSettings.userId, userId))).returning();
   return NextResponse.json(updated);

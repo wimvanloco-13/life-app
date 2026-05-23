@@ -29,6 +29,13 @@ export async function PATCH(
   if (body.color !== undefined) updates.color = body.color;
   if (body.displayOrder !== undefined) updates.displayOrder = Number(body.displayOrder);
   if (body.isArchived !== undefined) updates.isArchived = Boolean(body.isArchived);
+  if (body.bucket !== undefined) {
+    const validBuckets = ["fixed", "invest", "save", "guilt_free", null];
+    if (!validBuckets.includes(body.bucket)) {
+      return NextResponse.json({ error: "bucket must be one of: fixed, invest, save, guilt_free, or null" }, { status: 400 });
+    }
+    updates.bucket = body.bucket;
+  }
 
   const [updated] = await db.update(spendingCategories).set(updates).where(and(eq(spendingCategories.id, categoryId), eq(spendingCategories.userId, userId))).returning();
   return NextResponse.json(updated);

@@ -23,12 +23,27 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type { SpendingCategory } from "@/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { BucketKey, SpendingCategory } from "@/types";
 import { MoreHorizontal, Plus } from "lucide-react";
 import { LucideIcon } from "@/components/ui/lucide-icon";
 import { IconPicker } from "@/components/ui/icon-picker";
 import { CATEGORY_ICONS } from "@/lib/icons";
 import { DEFAULT_SPENDING_CATEGORIES } from "@/lib/defaults";
+
+const BUCKET_OPTIONS: { value: BucketKey | "none"; label: string }[] = [
+  { value: "none", label: "No bucket" },
+  { value: "fixed", label: "Fixed" },
+  { value: "invest", label: "Invest" },
+  { value: "save", label: "Save" },
+  { value: "guilt_free", label: "Guilt-Free" },
+];
 
 export function CategoriesPage() {
   const [categories, setCategories] = useState<SpendingCategory[]>([]);
@@ -110,6 +125,23 @@ export function CategoriesPage() {
     if (res.ok) fetchCategories();
   }
 
+  async function handleBucketChange(id: number, bucket: BucketKey | "none") {
+    const prev = categories.find((c) => c.id === id);
+    if (!prev) return;
+    const newBucket = bucket === "none" ? null : bucket;
+    // Optimistic update
+    setCategories((cats) => cats.map((c) => c.id === id ? { ...c, bucket: newBucket } : c));
+    const res = await fetch(`/api/spending-categories/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bucket: newBucket }),
+    });
+    if (!res.ok) {
+      // Rollback
+      setCategories((cats) => cats.map((c) => c.id === id ? { ...c, bucket: prev.bucket } : c));
+    }
+  }
+
   async function handleSeedDefaults() {
     for (const cat of DEFAULT_SPENDING_CATEGORIES) {
       await fetch("/api/spending-categories", {
@@ -172,11 +204,26 @@ export function CategoriesPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
                 <div
                   className="h-2 w-8 rounded-full"
                   style={{ backgroundColor: cat.color }}
                 />
+                <Select
+                  value={cat.bucket ?? "none"}
+                  onValueChange={(v) => handleBucketChange(cat.id, v as BucketKey | "none")}
+                >
+                  <SelectTrigger className="h-7 text-xs">
+                    <SelectValue placeholder="Assign bucket" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUCKET_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
           ))}

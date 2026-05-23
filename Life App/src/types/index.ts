@@ -255,6 +255,39 @@ export interface GoalSessionPattern {
 
 // ─── Budget Management ──────────────────────────────────
 
+export type BucketKey = "fixed" | "invest" | "save" | "guilt_free";
+
+export interface BucketTargets {
+  fixed: number;
+  invest: number;
+  save: number;
+  guilt_free: number;
+}
+
+export interface BucketActual {
+  key: BucketKey | "unassigned";
+  label: string;
+  targetPct: number | null;
+  actualPct: number;
+  actualAmount: number;
+}
+
+export interface InvestingLadderRung {
+  key: string;
+  label: string;
+  filled: boolean;
+  /** True if the user has a category matching this rung mapped to the 'invest' bucket */
+  categoryMapped: boolean;
+}
+
+export interface Target25x {
+  computedAnnualSpending: number | null;
+  overrideAnnualSpending: number | null;
+  activeAnnualSpending: number;
+  target: number;
+  adjustedTarget: number;
+}
+
 export interface BudgetSettings {
   id: number;
   currency: string;
@@ -262,6 +295,10 @@ export interface BudgetSettings {
   savingsGoalTotal: number | null;
   savingsGoalTargetDate: string | null;
   savingsStartingBalance: number | null;
+  bucketTargets: BucketTargets | null;
+  momentThreshold: number;
+  targetAnnualSpending: number | null;
+  statePensionAnnualAmount: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -305,6 +342,7 @@ export interface SpendingCategory {
   name: string;
   icon: string;
   color: string;
+  bucket: BucketKey | null;
   displayOrder: number;
   isArchived: boolean;
   createdAt: string;
@@ -329,6 +367,9 @@ export interface BudgetSummary {
   } | null;
   totalPlannedExpenses: number;
   plannedExpenses: PlannedExpense[];
+  buckets: BucketActual[];
+  investingLadder: InvestingLadderRung[];
+  target25x: Target25x;
 }
 
 export interface PlannedExpense {
