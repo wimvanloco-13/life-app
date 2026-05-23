@@ -1,9 +1,11 @@
 "use client";
 
 import { formatEur } from "@/lib/currency";
-import type { BudgetSettings, BudgetSummary } from "@/types";
+import type { BudgetSettings, BudgetSummary, MomentLog } from "@/types";
 import { Budget25xCard } from "./budget-25x-card";
 import { BudgetTrueExpensesStrip } from "./budget-true-expenses-strip";
+import { ParkedDecisionsDialog } from "./parked-decisions-dialog";
+import { useState, useEffect, useCallback } from "react";
 
 interface BudgetTargetsPanelProps {
   summary: BudgetSummary;
@@ -18,6 +20,25 @@ export function BudgetTargetsPanel({
   allPlannedExpenses,
   onSave25x,
 }: BudgetTargetsPanelProps) {
+  const [parkedLogs, setParkedLogs] = useState<MomentLog[]>([]);
+  const [parkedDialogOpen, setParkedDialogOpen] = useState(false);
+
+  const fetchParked = useCallback(async () => {
+    const res = await fetch("/api/moment-logs?decision=parked");
+    if (res.ok) {
+      const data = await res.json();
+      setParkedLogs(data.logs ?? []);
+    }
+  }, []);
+
+  useEffect(() => {
+    void Promise.all([fetchParked()]);
+    // Refresh when a new moment log is saved from the sidebar button
+    function onSaved() { void Promise.all([fetchParked()]); }
+    window.addEventListener("moment-log-saved", onSaved);
+    return () => window.removeEventListener("moment-log-saved", onSaved);
+  }, [fetchParked]);
+
   return (
     <section className="space-y-8">
       <div className="space-y-1">
@@ -88,6 +109,27 @@ export function BudgetTargetsPanel({
           currentMonth={summary.month}
         />
       </div>
+
+      {parkedLogs.length > 0 && (
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            You have {parkedLogs.length} parked purchase decision{parkedLogs.length !== 1 ? "s" : ""}.
+          </p>
+          <button
+            onClick={() => setParkedDialogOpen(true)}
+            className="text-sm underline underline-offset-2 text-foreground hover:text-muted-foreground transition-colors"
+          >
+            Review
+          </button>
+        </div>
+      )}
+
+      <ParkedDecisionsDialog
+        open={parkedDialogOpen}
+        onOpenChange={setParkedDialogOpen}
+        logs={parkedLogs}
+        onRefresh={fetchParked}
+      />
     </section>
   );
 }

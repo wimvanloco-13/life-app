@@ -401,6 +401,24 @@ export const habitLogs = sqliteTable("habit_logs", {
   createdAt: timestamp(),
 });
 
+// ─── Moment Logs ─────────────────────────────────────────
+
+export const momentLogs = sqliteTable("moment_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull(),
+  date: text("date").notNull(),
+  amount: real("amount").notNull(),
+  description: text("description").notNull(),
+  categoryId: integer("category_id").references(() => spendingCategories.id),
+  spendingEntryId: integer("spending_entry_id").references(() => spendingEntries.id),
+  scorecardAnswer: text("scorecard_answer"),
+  utilityStatusAnswer: text("utility_status_answer"),
+  sixMonthAnswer: text("six_month_answer"),
+  decision: text("decision").notNull(),
+  createdAt: timestamp(),
+  updatedAt: updatedAt(),
+});
+
 // ─── Library ─────────────────────────────────────────────
 // Content tables are intentionally global (no user_id).
 // Only library_bookmarks is per-user scoped.

@@ -542,6 +542,27 @@ export interface HabitDraft {
   color: string;
 }
 
+// ─── Moment Logs ─────────────────────────────────────────────────────────────
+
+export type MomentDecision = "proceeded" | "declined" | "parked";
+
+export interface MomentLog {
+  id: number;
+  userId: string;
+  date: string;
+  amount: number;
+  description: string;
+  categoryId: number | null;
+  categoryName?: string | null;
+  spendingEntryId: number | null;
+  scorecardAnswer: string | null;
+  utilityStatusAnswer: string | null;
+  sixMonthAnswer: string | null;
+  decision: MomentDecision;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Library ─────────────────────────────────────────────────────────────────
 
 export type LibraryItemType = "protocol" | "exercise" | "tip" | "concept";
