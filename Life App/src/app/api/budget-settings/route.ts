@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { budgetSettings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 
 async function getOrCreateBudgetSettings(userId: string) {
@@ -52,6 +52,6 @@ export async function PATCH(request: NextRequest) {
   if (body.targetAnnualSpending !== undefined) updates.targetAnnualSpending = body.targetAnnualSpending == null ? null : Math.max(0, Number(body.targetAnnualSpending));
   if (body.statePensionAnnualAmount !== undefined) updates.statePensionAnnualAmount = body.statePensionAnnualAmount == null ? null : Math.max(0, Number(body.statePensionAnnualAmount));
 
-  const [updated] = await db.update(budgetSettings).set(updates).where(eq(budgetSettings.id, settings.id)).returning();
+  const [updated] = await db.update(budgetSettings).set(updates).where(and(eq(budgetSettings.id, settings.id), eq(budgetSettings.userId, userId))).returning();
   return NextResponse.json(updated);
 }

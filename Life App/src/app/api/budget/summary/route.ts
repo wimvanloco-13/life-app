@@ -4,6 +4,7 @@ import { budgetSettings, incomeEntries, fixedCosts, spendingEntries, spendingCat
 import { eq, and, gte } from "drizzle-orm";
 import { format, parseISO, getDaysInMonth, differenceInDays, endOfMonth, parse, addMonths, subMonths, isBefore, isAfter } from "date-fns";
 import type { BudgetSummary, BucketActual, BucketKey, BucketTargets, InvestingLadderRung, Target25x } from "@/types";
+import { validateBucketTargets, deriveInvestingLadder, computeTarget25x } from "@/lib/budget-computations";
 import { auth } from "@/lib/auth";
 
 async function getOrCreateBudgetSettings(userId: string) {
@@ -148,9 +149,17 @@ export async function GET(request: NextRequest) {
   // ── Buckets (Task 1.9) ────────────────────────────────────────────────────
   // Bucket actuals are expressed as % of totalIncome (Sethi-style),
   // NOT as % of spendingBudget. Base is always totalIncome.
-  const bucketTargets: BucketTargets = settings.bucketTargets
-    ? (JSON.parse(settings.bucketTargets) as BucketTargets)
-    : { fixed: 50, invest: 10, save: 10, guilt_free: 30 };
+  let parsedBucketTargets: BucketTargets | null = null;
+  if (settings.bucketTargets) {
+    try {
+      const parsed = JSON.parse(settings.bucketTargets);
+      const validation = validateBucketTargets(parsed);
+      if (validation.ok) parsedBucketTargets = validation.value;
+    } catch {
+      // corrupt JSON → fall through to defaults
+    }
+  }
+  const bucketTargets: BucketTargets = parsedBucketTargets ?? { fixed: 50, invest: 10, save: 10, guilt_free: 30 };
 
   const BUCKET_LABELS: Record<BucketKey, string> = {
     fixed: "Fixed",
@@ -204,7 +213,7 @@ export async function GET(request: NextRequest) {
   }
 
   // ── Investing ladder (Task 1.10) ──────────────────────────────────────────
-  // emergency_cash: filled when computedSaved ≥ 3 × avg_monthly_fixed_costs (last 3 completed months)
+  // Compute saved balance (same formula as savingsGoal.saved above)
   const allSavingsEntriesForLadder = await db.select().from(spendingEntries)
     .where(and(eq(spendingEntries.userId, userId), eq(spendingEntries.category, "Savings")));
   const allWithdrawalEntriesForLadder = await db.select().from(spendingEntries)
@@ -241,8 +250,6 @@ export async function GET(request: NextRequest) {
   let totalFixedCostsFor3Months = 0;
   let monthsWithData = 0;
   for (const pm of prev3Months) {
-    const pmStart = pm + "-01";
-    const pmEnd = format(endOfMonth(parseISO(pmStart)), "yyyy-MM-dd");
     const pmFixedCosts = allFixedCosts.filter(
       (fc) => fc.startMonth <= pm && (fc.endMonth == null || fc.endMonth >= pm)
     ).reduce((sum, fc) => sum + fc.amount, 0);
@@ -250,54 +257,30 @@ export async function GET(request: NextRequest) {
       totalFixedCostsFor3Months += pmFixedCosts;
       monthsWithData++;
     }
-    void pmEnd;
   }
   const avgMonthlyFixed = monthsWithData > 0 ? totalFixedCostsFor3Months / monthsWithData : totalFixedCosts;
-  const emergencyCashFilled = avgMonthlyFixed > 0 && computedSaved >= 3 * avgMonthlyFixed;
 
-  // Check which ladder names the user has categories mapped to 'invest'
   const investCategoryNames = new Set(
     categories.filter((c) => c.bucket === "invest").map((c) => c.name.toLowerCase())
   );
 
-  const LADDER_RUNGS: { key: string; label: string; matchNames: string[] }[] = [
-    { key: "emergency_cash", label: "Emergency Cash (3 months)", matchNames: [] },
-    { key: "credit_card_debt", label: "Pay off credit card debt", matchNames: ["credit_card_debt"] },
-    { key: "consumer_credit", label: "Pay off consumer credit", matchNames: ["consumer_credit"] },
-    { key: "employer_pension", label: "Max employer pension / 2nd pillar", matchNames: ["employer_pension", "2nd_pillar"] },
-    { key: "pensioensparen", label: "Pensioensparen (€1,350/yr)", matchNames: ["pensioensparen"] },
-    { key: "langetermijnsparen", label: "Langetermijnsparen (€2,450/yr)", matchNames: ["langetermijnsparen"] },
-    { key: "etf_investment", label: "Broad ETF investment (VT/IWDA)", matchNames: ["etf_investment"] },
-  ];
-
-  const investingLadder: InvestingLadderRung[] = LADDER_RUNGS.map((rung) => {
-    if (rung.key === "emergency_cash") {
-      return { key: rung.key, label: rung.label, filled: emergencyCashFilled, categoryMapped: true };
-    }
-    const categoryMapped = rung.matchNames.some((n) => investCategoryNames.has(n));
-    return { key: rung.key, label: rung.label, filled: categoryMapped, categoryMapped };
+  const investingLadder: InvestingLadderRung[] = deriveInvestingLadder({
+    computedSaved,
+    avgMonthlyFixedCosts: avgMonthlyFixed,
+    investCategoryNames,
   });
 
   // ── 25× target (Task 1.11) ────────────────────────────────────────────────
-  // Compute 12-month trailing annual spending from actual spending entries
   const last12MonthsStart = format(subMonths(parse(format(today, "yyyy-MM") + "-01", "yyyy-MM-dd", new Date()), 12), "yyyy-MM-dd");
   const allSpendingForTarget = await db.select().from(spendingEntries)
     .where(and(eq(spendingEntries.userId, userId), gte(spendingEntries.date, last12MonthsStart)));
   const trailingAnnualSpending = allSpendingForTarget.reduce((s, e) => s + e.amount, 0);
 
-  const computedAnnualSpending = trailingAnnualSpending > 0 ? trailingAnnualSpending : null;
-  const overrideAnnualSpending = settings.targetAnnualSpending ?? null;
-  const activeAnnualSpending = overrideAnnualSpending ?? computedAnnualSpending ?? 0;
-  const statePension = settings.statePensionAnnualAmount ?? 0;
-  const target = activeAnnualSpending * 25;
-  const adjustedTarget = Math.max(0, (activeAnnualSpending - statePension) * 25);
-  const target25x: Target25x = {
-    computedAnnualSpending,
-    overrideAnnualSpending,
-    activeAnnualSpending,
-    target,
-    adjustedTarget,
-  };
+  const target25x: Target25x = computeTarget25x({
+    trailingAnnualSpending,
+    overrideAnnualSpending: settings.targetAnnualSpending ?? null,
+    statePensionAnnualAmount: settings.statePensionAnnualAmount ?? null,
+  });
 
   const summary: BudgetSummary = {
     month, totalIncome, totalFixedCosts, monthlySavingsTarget, spendingBudget, totalSpent,
