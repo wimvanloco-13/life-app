@@ -1,6 +1,6 @@
 ﻿# Life App -- Feature Roadmap
 
-> Last updated: 2026-05-22.
+> Last updated: 2026-05-23.
 
 ## Product Vision
 
@@ -110,6 +110,8 @@ Each feature below becomes a separate spec-kit specification. Features are order
 **Routes added**: `/api/budget-settings`, `/api/budget/summary`, `/api/spending`, `/api/spending/[id]`, `/api/spending-categories`, `/api/spending-categories/[id]`, `/api/fixed-costs`, `/api/fixed-costs/[id]`, `/api/income`, `/api/income/[id]`
 
 **Dependencies**: None.
+
+> **Extended by**: Budget Expansion (see below).
 
 ---
 
@@ -693,6 +695,60 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 **Schema changes**: None.
 **Routes modified**: `GET /api/budget/summary` (savings fixed cost calculation).
 **Files changed**: `activity-form.tsx`, `weekly-plan-view.tsx`, `daily-view.tsx`, `sport-form.tsx`, `types/index.ts`, `defaults.ts`, `budget/summary/route.ts`.
+
+---
+
+### Budget Expansion
+
+**Spec ID**: `budget-expansion`
+**Status**: Built (complete — PRs #40, #41, #42)
+**Completed**: 2026-05-23
+
+**What it does**: Transforms the Budget tab from a passive spending tracker into a principle-driven financial thinking surface. Treats budgeting as a learnable skill by adding three time-horizon layers (Foundation, Moment, Library), a Belgian-contextualised investing ladder, a 25× financial-independence target, and a reflective big-purchase dialog grounded in spending psychology.
+
+**What has been built**:
+
+*Phase 1 — Foundation Dashboard (PR #40)*
+- Four Sethi-style income buckets (Fixed, Invest, Save, Guilt-Free) with per-bucket % targets, actual vs. target display, and unassigned-spending warning
+- Bucket assignment column on the Categories tab (optimistic UI with rollback)
+- Belgian investing ladder: 7 vertical rungs (employer match, high-interest debt, pensioensparen, langetermijnsparen, ETF investment, 2nd pillar, consumer/credit-card debt), filled/unfilled status from category mapping
+- 25× FI card: computes target portfolio as `25 × (annual spending − state pension)`; inline edit form for overriding annual spending and state pension amount
+- True expenses strip: 12-month horizontal view of planned expenses for the current year
+- Income helper text: clarifies that `incomeEntries.amount` is net (after taxes and social security)
+- `budget-computations.ts` utility library (pure functions `validateBucketTargets`, `deriveInvestingLadder`, `computeTarget25x`, `isValidBucket`) with 23 unit tests
+- Removed orphaned `budget-analytics.tsx` and old monthly bar charts
+
+*Phase 2 — Moment Trigger (PR #41)*
+- `LogBigPurchaseDialog`: 5-step reflective dialog — preflight (amount, description, category, date) → Inner Scorecard → Utility vs. Status → Six-Month Question → Decision (Proceeded / Declined / Parked) with optional "Also log as spending" checkbox
+- `ShoppingBag` button in the sidebar header, always visible; fetches `momentThreshold` from settings
+- Transactional spend insert: when `alsoLogAsSpending && decision === 'proceeded'`, inserts a `spendingEntries` row and a `moment_logs` row atomically
+- Parked-decisions surface on the Dashboard Targets panel: fetches parked list on mount, shows count with "Review" link
+- `ParkedDecisionsDialog`: lists parked items with their three filter answers; resolve to Proceeded/Declined (PATCH) or delete per row
+- `housel-framings.md`: verbatim framing copy for all three dialog filter steps
+- 28 unit tests for step navigation, decision validation, checkbox visibility, below-threshold indicator
+
+*Phase 3 — Library Budget Topic (PR #42)*
+- Budget topic seeded into the Library: 6 items under "Principles" category
+  1. Why budget exists (concept) — purpose-of-money-is-freedom, autonomy score reframe
+  2. The four conscious-spending buckets (concept) — Sethi CSP with Belgian fixed-costs reality check
+  3. Embracing true expenses (protocol) — YNAB Rule 2 with Belgian list (autokeuring, onroerende voorheffing, hospitalisatieverzekering, mutualiteit remgeld, opvang)
+  4. The Belgian investing ladder (protocol) — 6 rungs, 2026 ceilings, fiscale-korf warning
+  5. Your 25× number (concept) — 4% rule with Belgian state-pension adjustment
+  6. Before a big purchase: three filters (protocol) — Inner Scorecard, Utility vs. Status, six-month question (mirrors the P2 Moment dialog)
+- Dynamic `displayOrder` (MAX + 1) on Budget topic insert; idempotent on re-runs
+- Budget entry added to Library sidebar nav (PiggyBank icon, `/library/budget`)
+
+**Tables added**: `moment_logs`
+
+**Tables modified**:
+- `spending_categories`: added `bucket` column (`'fixed' | 'invest' | 'save' | 'guilt_free' | null`)
+- `budget_settings`: added `bucket_targets` (JSON), `moment_threshold` (REAL, default 200), `target_annual_spending` (REAL), `state_pension_annual_amount` (REAL)
+
+**Routes added**: `GET /api/moment-logs`, `POST /api/moment-logs`, `PATCH /api/moment-logs/:id`, `DELETE /api/moment-logs/:id`
+
+**Routes modified**: `GET /api/budget/summary` (added `buckets`, `investingLadder`, `target25x`), `GET/PATCH /api/budget-settings` (new fields), `PATCH /api/spending-categories/:id` (bucket assignment)
+
+**Dependencies**: Feature 3 (Budget Management — built). Library feature (built).
 
 ---
 

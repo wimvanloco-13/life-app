@@ -1,6 +1,6 @@
 # Data Model: Life App
 
-> Last updated: 2026-05-15. Reflects current schema including Feature 1 (Calendar Management), Feature 2 (Fitness Tracking → Activities), Feature 3 (Budget Management), v2 Overhaul, Goals V2, Scheduler Rules, Training Periodization, **Training vs Supplemental Session Split (V1, partial)**, **Activities Refactoring V1** (`activities.is_log_entry` → `created_from_log`, `activity_types.default_duration_minutes`, schedule-to-log bridge, derived `linkedLogId` on activity GET), UI Refinements, **Friend Release** (users table, user_id on all data tables, per-user data isolation), **Role Scheduling Rules Removal** (dropped `max_weekly_occurrences` and `min_rest_days` from `roles`, added `[1, 7]` clamp on `goals.sessions_per_week`), and **Habit Tracking Phase 1** (`habits`, `habit_logs` tables with unique index).
+> Last updated: 2026-05-23. Reflects current schema including Feature 1 (Calendar Management), Feature 2 (Fitness Tracking → Activities), Feature 3 (Budget Management), v2 Overhaul, Goals V2, Scheduler Rules, Training Periodization, **Training vs Supplemental Session Split (V1, partial)**, **Activities Refactoring V1** (`activities.is_log_entry` → `created_from_log`, `activity_types.default_duration_minutes`, schedule-to-log bridge, derived `linkedLogId` on activity GET), UI Refinements, **Friend Release** (users table, user_id on all data tables, per-user data isolation), **Role Scheduling Rules Removal** (dropped `max_weekly_occurrences` and `min_rest_days` from `roles`, added `[1, 7]` clamp on `goals.sessions_per_week`), **Habit Tracking Phase 1** (`habits`, `habit_logs` tables with unique index), and **Budget Expansion** (`moment_logs` table; `bucket` on `spending_categories`; `bucket_targets`, `moment_threshold`, `target_annual_spending`, `state_pension_annual_amount` on `budget_settings`).
 
 ## Multi-User Architecture (Friend Release)
 
@@ -550,6 +550,73 @@ A one-off future expense the user knows about in advance (e.g., Christmas gifts,
 
 ---
 
+### BudgetSettings *(extended by Budget Expansion)*
+
+Per-user budget configuration. One row per user (auto-created on first access).
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| userId | TEXT | NOT NULL, UNIQUE | Owner user |
+| currency | TEXT | NOT NULL, default 'EUR' | Display currency |
+| monthlySavingsTarget | REAL | NOT NULL, default 0 | Monthly savings target amount |
+| savingsGoalTotal | REAL | nullable | Long-term savings goal total |
+| savingsGoalTargetDate | TEXT | nullable, YYYY-MM-DD | Target date for the savings goal |
+| savingsStartingBalance | REAL | nullable | Manual starting balance for savings calculation |
+| bucketTargets | TEXT | nullable | JSON: `{ fixed: number, invest: number, save: number, guilt_free: number }` — target % per bucket (must sum to ~100). Added in Budget Expansion. |
+| momentThreshold | REAL | NOT NULL, default 200 | Euro amount above which the "Log big purchase" dialog prompts the user. Added in Budget Expansion. |
+| targetAnnualSpending | REAL | nullable | Override for annual spending used in the 25× FI calculation. Added in Budget Expansion. |
+| statePensionAnnualAmount | REAL | nullable | Projected Belgian state pension per year, used to compute the post-pension gap for the 25× target. Added in Budget Expansion. |
+| updatedAt | TEXT | NOT NULL, ISO 8601 | Last modification time |
+
+---
+
+### SpendingCategory *(extended by Budget Expansion)*
+
+A spending category used to tag spending entries and planned expenses. Default categories are seeded per user.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| userId | TEXT | NOT NULL | Owner user |
+| name | TEXT | NOT NULL | Category name (e.g., "Food", "Transport") |
+| icon | TEXT | NOT NULL | Emoji icon |
+| color | TEXT | NOT NULL | Display colour |
+| displayOrder | INTEGER | NOT NULL, default 0 | Sort order |
+| isArchived | INTEGER | NOT NULL, default 0 | 1 = archived (hidden from quick-add) |
+| bucket | TEXT | nullable | Sethi-style budget bucket assignment. One of: `'fixed'`, `'invest'`, `'save'`, `'guilt_free'`, or `null` (unassigned). Added in Budget Expansion. |
+| createdAt | TEXT | NOT NULL, ISO 8601 | When created |
+| updatedAt | TEXT | NOT NULL, ISO 8601 | Last modification time |
+
+---
+
+### MomentLog *(Budget Expansion)*
+
+A record of a significant purchase decision — either acted on, declined, or parked for later reflection. Stores the user's answers to three Housel-inspired reflection filters. Optionally links to a `spending_entries` row when the user also wanted to log the spend.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| userId | TEXT | NOT NULL | Owner user |
+| date | TEXT | NOT NULL, YYYY-MM-DD | Date of the purchase decision (ISO, display as DD-MM-YYYY) |
+| amount | REAL | NOT NULL | Purchase amount in euros |
+| description | TEXT | NOT NULL | What the purchase is |
+| categoryId | INTEGER | FK -> SpendingCategory.id, nullable | Optional spending category |
+| spendingEntryId | INTEGER | FK -> SpendingEntries.id, nullable | Linked spending entry — set only when `decision = 'proceeded'` and the user chose "Also log as spending". **Intentionally not cascade-deleted** — the spending entry survives if the moment log is deleted. |
+| scorecardAnswer | TEXT | nullable | User's free-text answer to the Inner Scorecard filter |
+| utilityStatusAnswer | TEXT | nullable | User's free-text answer to the Utility vs. Status filter |
+| sixMonthAnswer | TEXT | nullable | User's free-text answer to the six-month question |
+| decision | TEXT | NOT NULL | One of: `'proceeded'`, `'declined'`, `'parked'` |
+| createdAt | TEXT | NOT NULL, ISO 8601 | When logged |
+| updatedAt | TEXT | NOT NULL, ISO 8601 | Last modification time |
+
+**Design notes**:
+- All three filter-answer fields are nullable — the user can skip any step.
+- A parked log is one the user hasn't decided on yet. The Dashboard Targets panel surfaces a count with a "Review" link.
+- Deleting a moment log does not delete the linked `spendingEntries` row (decoupled). Deleting the spending entry does not affect the moment log.
+
+---
+
 ### TrainingPlan
 
 A periodization plan attached to a goal. Shared across sports (climbing, tennis) via the `sport` discriminator and `sportProfile` JSON blob. One plan per goal.
@@ -683,6 +750,7 @@ One completion record per habit per calendar day. The unique index enforces "at 
 | activityLogs | ~500-1000 | Logged activity sessions |
 | bodyMetrics | ~100-200 | Weight, VO2max, resting HR measurements |
 | plannedExpenses | ~10-30 | One-off future budget expenses |
+| momentLogs | ~20-100 | Big-purchase decision records with Housel filter answers |
 | goalTallies | ~50-200 | Simple count-based progress entries for non-athletic goals (Goals V2) |
 | schedulerBlackoutDates | ~5-20 | Dates to skip during scheduling (holidays, birthdays) |
 | goalSessionPatterns | ~5-30 | Repeating session intensity cycles per goal |

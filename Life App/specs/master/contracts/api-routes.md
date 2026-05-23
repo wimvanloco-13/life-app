@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-05-22. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), and **Library** (full — read-only, bookmarks, and admin CRUD). Onboarding Wizard removed.
+> Last updated: 2026-05-23. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), and **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -1020,6 +1020,168 @@ Update a planned expense. Accepts any subset of fields.
 ### DELETE /api/planned-expenses/:id
 
 Delete a planned expense.
+
+---
+
+## Moment Logs *(Budget Expansion)*
+
+Records of big-purchase decisions with optional Housel filter answers. Per-user; all routes require auth (401 if no session). `categoryId` ownership is validated on POST (403 if the category belongs to another user).
+
+### POST /api/moment-logs
+
+Create a moment log. Optionally inserts a linked `spending_entries` row in the same transaction.
+
+**Auth**: required.
+
+**Body**:
+```json
+{
+  "amount": 850,
+  "description": "New laptop",
+  "date": "2026-05-23",
+  "categoryId": 3,
+  "scorecardAnswer": "Mostly for me, a little bit for the look",
+  "utilityStatusAnswer": "High utility — I need it daily. Moderate status.",
+  "sixMonthAnswer": "I'll still be using it every day.",
+  "decision": "proceeded",
+  "alsoLogAsSpending": true
+}
+```
+
+- `amount`: required, > 0.
+- `date`: required, `YYYY-MM-DD`.
+- `decision`: required, one of `"proceeded"`, `"declined"`, `"parked"`.
+- `categoryId`: optional. Must belong to the current user (403 otherwise).
+- `scorecardAnswer`, `utilityStatusAnswer`, `sixMonthAnswer`: optional. Saved as-is (nullable).
+- `alsoLogAsSpending`: optional. When `true` AND `decision === "proceeded"`, inserts a `spending_entries` row atomically and sets `spendingEntryId` on the moment log.
+
+**Response** `201`: The created `moment_logs` row (including `spendingEntryId` if linked).
+**Response** `400`: Validation error with field-specific message.
+**Response** `403`: `categoryId` does not belong to the current user.
+
+---
+
+### GET /api/moment-logs
+
+Returns paginated moment logs for the current user, joined with category name.
+
+**Auth**: required.
+
+**Query params**:
+- `limit` (default 50, max 200)
+- `offset` (default 0)
+- `decision` (optional — one of `"proceeded"`, `"declined"`, `"parked"`)
+
+**Response** `200`:
+```json
+{
+  "logs": [
+    {
+      "id": 1,
+      "userId": "...",
+      "date": "2026-05-23",
+      "amount": 850,
+      "description": "New laptop",
+      "categoryId": 3,
+      "categoryName": "Electronics",
+      "spendingEntryId": 42,
+      "scorecardAnswer": "...",
+      "utilityStatusAnswer": "...",
+      "sixMonthAnswer": "...",
+      "decision": "proceeded",
+      "createdAt": "...",
+      "updatedAt": "..."
+    }
+  ],
+  "total": 12
+}
+```
+
+---
+
+### PATCH /api/moment-logs/:id
+
+Update a moment log's `decision` and/or filter answers. Ownership-gated (404 if not found or belongs to another user).
+
+**Auth**: required.
+
+**Body** (all fields optional):
+```json
+{
+  "decision": "declined",
+  "scorecardAnswer": "Updated answer",
+  "utilityStatusAnswer": null,
+  "sixMonthAnswer": "Changed my mind"
+}
+```
+
+**Response** `200`: Updated moment log row.
+**Response** `400`: Invalid `decision` value.
+**Response** `404`: Not found or not owned by current user.
+
+---
+
+### DELETE /api/moment-logs/:id
+
+Delete a moment log. **Does NOT delete the linked `spendingEntries` row** — the spending entry is decoupled and survives independently. Ownership-gated.
+
+**Auth**: required.
+
+**Response** `204`: No content.
+**Response** `404`: Not found or not owned by current user.
+
+---
+
+## Budget Settings *(extended by Budget Expansion)*
+
+The `GET /api/budget-settings` and `PATCH /api/budget-settings` routes now include four additional fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bucketTargets` | `{ fixed, invest, save, guilt_free }` or `null` | Target % per Sethi bucket. Validated on PATCH: must be an object with all four numeric keys. |
+| `momentThreshold` | `number` (default 200) | Euro amount above which the Moment dialog prompts the user. |
+| `targetAnnualSpending` | `number \| null` | Override for annual spending in the 25× FI calculation. |
+| `statePensionAnnualAmount` | `number \| null` | Projected state pension per year for the 25× target adjustment. |
+
+---
+
+## Budget Summary *(extended by Budget Expansion)*
+
+`GET /api/budget/summary?month=YYYY-MM` now returns three additional top-level fields:
+
+```json
+{
+  "buckets": [
+    { "key": "fixed", "label": "Fixed", "targetPct": 55, "actualPct": 58.2, "actualAmount": 2100 },
+    { "key": "invest", "label": "Invest", "targetPct": 10, "actualPct": 8.1, "actualAmount": 290 },
+    { "key": "save", "label": "Save", "targetPct": 10, "actualPct": 5.4, "actualAmount": 195 },
+    { "key": "guilt_free", "label": "Guilt-Free", "targetPct": 25, "actualPct": 28.3, "actualAmount": 1020 }
+  ],
+  "investingLadder": [
+    { "slug": "pensioensparen", "label": "Pensioensparen", "filled": true, "amount": 87.50 },
+    { "slug": "langetermijnsparen", "label": "Langetermijnsparen", "filled": false, "amount": 0 }
+  ],
+  "target25x": {
+    "annualSpending": 36000,
+    "statePensionOffset": 15000,
+    "annualGap": 21000,
+    "target": 525000
+  }
+}
+```
+
+- `buckets`: actual % computed against monthly income. Unassigned spending is surfaced separately.
+- `investingLadder`: 7 rungs derived from category-to-rung mapping and actual spending this month.
+- `target25x`: computed by `computeTarget25x()` in `src/lib/budget-computations.ts`. If `targetAnnualSpending` is set in settings, it overrides the computed annual spending from spending entries.
+
+---
+
+## Spending Categories *(extended by Budget Expansion)*
+
+`PATCH /api/spending-categories/:id` now accepts a `bucket` field:
+
+- `bucket`: one of `"fixed"`, `"invest"`, `"save"`, `"guilt_free"`, or `null` (unassign).
+- Returns `400` for any other value.
 
 ---
 
