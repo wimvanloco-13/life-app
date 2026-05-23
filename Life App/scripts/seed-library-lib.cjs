@@ -752,6 +752,55 @@ const SEED_DATA = [
       },
     ],
   },
+  // ── BUDGET ──────────────────────────────────────────────────────────────────
+  {
+    slug: "budget", title: "Budget", icon: "Wallet",
+    description: "Money as a skill",
+    dynamicDisplayOrder: true,
+    categories: [
+      {
+        title: "Principles",
+        items: [
+          {
+            title: "Why budget exists", type: "concept",
+            what: "Budgeting is not about restriction. It is the practical lever for a single goal: owning your time. Every financial decision — what to spend, what to save, what to invest — is a vote for how much of your life you spend doing what you choose versus what circumstances force on you.",
+            why: "Without a deliberate allocation of money, spending defaults to whatever is loudest or most convenient. Over a working life, the gap between 'budgeted' and 'unbudgeted' does not close — it compounds in the wrong direction. The person who assigns every euro a job months ahead of when it is needed lives in a qualitatively different relationship with their work and time than the person who is always one unexpected bill away from anxiety.",
+            how: "Start with one question: if your income stopped tomorrow, how many months could you maintain your current life without distress? That number is your current autonomy score. Every budget decision either raises or lowers it. A useful reframe for any spending choice: does this purchase buy me more time, or does it buy me things that require more time to maintain and fund?",
+          },
+          {
+            title: "The four conscious-spending buckets", type: "concept",
+            what: "Divide your monthly net income into four buckets — Fixed Costs, Investments, Savings, and Guilt-Free Spending — and automate a transfer into each one the day after payday. Once the automation runs, you are free to spend the Guilt-Free bucket on anything without tracking it.",
+            why: "Traditional budgets fail because they ask you to suppress every desire. The four-bucket structure replaces guilt with permission: you are explicitly allowed to spend the Guilt-Free bucket on whatever you love, as long as the other three are funded first. This removes the psychological friction that causes most people to abandon budgets within two months.",
+            how: "Starting percentages (net income after taxes and social security):\n\n• Fixed Costs — 50–60 %: rent or mortgage, utilities, groceries, insurance, phone, minimum debt payments.\n• Investments — 10 %: follow the Belgian investing ladder (see the dedicated item).\n• Savings — 5–10 %: emergency fund, annual true expenses (autokeuring, holiday, gifts), and medium-term goals.\n• Guilt-Free Spending — 20–35 %: dining out, hobbies, clothes, travel — whatever you enjoy.\n\nBelgian reality check: Belgian housing costs frequently push Fixed Costs to 65–70 % for households with a mortgage in Brussels or Antwerp. This is not a failure — it is the local cost structure. Adjust the other buckets proportionally rather than flagging yourself as 'over target'. The buckets are defaults, not laws.",
+          },
+          {
+            title: "Embracing true expenses", type: "protocol",
+            what: "Every predictable-but-irregular cost in your life — paid once or twice a year but entirely foreseeable — is a monthly bill you have been refusing to acknowledge. Divide its annual total by 12 and fund a dedicated savings category every month. By the time the bill arrives, the money is already there.",
+            why: "The single most common reason 'good budgets' collapse is a large bill that was predictable from the start. The car insurance renewal, the school-year opvang fees, the holiday flights, the property tax — none of these are surprises. They only feel like emergencies because most budgets are built month-to-month. A budget that handles true expenses eliminates this category of stress entirely.",
+            how: "Make a list of everything you pay that is not monthly. Common Belgian examples:\n\n• Autokeuring (car technical inspection) — every 1–2 years\n• Onroerende voorheffing (property tax) — annual\n• Hospitalisatieverzekering premium — annual or quarterly\n• Mutualiteit out-of-pocket costs (remgeld, dental, glasses)\n• Opvang / school fees — semester or annual\n• Holiday and travel costs\n• Christmas and birthday gifts\n• Annual software subscriptions\n• Pet vaccines and vet visits\n• Car insurance, tyres, brakes\n\nFor each, estimate the annual total and divide by 12. Add that amount as a recurring transfer into a labelled savings sub-account or envelope each month. Do not touch those funds for anything else.",
+          },
+          {
+            title: "The Belgian investing ladder", type: "protocol",
+            what: "Not all euros you invest are equal. Belgium has a stack of tax-advantaged products, each with its own ceiling and tax benefit. Working through them in priority order — rather than investing arbitrarily — is worth several percentage points of net return per year on modest contributions.",
+            why: "The most common Belgian investing mistake is skipping the lower rungs (where the government gives you 25–30 % back via tax reduction) and going straight to a brokerage account. That decision costs real money — a 30 % tax reduction on the first €1,050 you invest annually is a guaranteed immediate return that no market can reliably match.",
+            how: "Work through these rungs in order. Stop at each one before moving to the next. All ceilings are for tax year 2026 and are frozen through 2030.\n\n**Rung 1 — Employer match (groepsverzekering / pensioenfonds)**\nIf your employer offers to match contributions to a group pension plan, contribute enough to capture the full match. This is free money. Never skip it.\n\n**Rung 2 — High-interest debt**\nPay off any consumer credit or credit-card debt before anything else. A 10–15 % interest rate on debt is a guaranteed 10–15 % return on repayment — better than any investment on the next rungs.\n\n**Rung 3 — Pensioensparen klassiek** — ceiling €1,050/year\nContributes to your third pillar. You receive a 30 % tax reduction — up to €315 back. An alternative ceiling of €1,350 exists with a 25 % reduction: only choose it if you save more than €1,260/year.\n\n**Rung 4 — Langetermijnsparen** — ceiling €2,450/year\nAlso 30 % tax reduction. Important: langetermijnsparen shares a fiscale korf (tax basket) with mortgage capital repayments and life-insurance premiums. If you have a mortgage, check how much of the korf is already used before contributing here.\n\n**Rung 5 — Accumulating UCITS ETFs**\nOnce rungs 1–4 are filled (or not available to you), invest the remainder in low-cost, accumulating UCITS-compliant index ETFs via a Belgian broker (Bolero, MeDirect, Saxo Belgium). Accumulating ETFs avoid the 30 % withholding tax on distributions. You will pay TOB (beurstaks) on each transaction, and from 2026 a 10 % meerwaardebelasting applies to gains above a €10,000 annual personal exemption.\n\n**Rung 6 — Regulated savings account (spaarrekening)**\nLow yield. Useful only for your emergency cash buffer — typically 3–6 months of essential fixed costs. The first €1,020 of annual interest is tax-free per person.",
+          },
+          {
+            title: "Your 25\u00d7 number", type: "concept",
+            what: "Financial independence has a concrete threshold: save 25 times your annual spending in a diversified index portfolio. Withdraw no more than 4 % of the total per year. History shows this rate almost never depletes the principal across any 30-year window. Once you cross the threshold, your portfolio funds your life — whether or not you work.",
+            why: "Without a target number, retirement planning is a vague anxiety. The 25\u00d7 rule converts it into a solvable equation. It also reframes every monthly budget decision: every euro saved and invested is a step toward a specific, calculable finish line — not an abstract virtue.",
+            how: "**The calculation:**\nEstimate your annual spending in retirement. Multiply by 25. That is your target portfolio.\n\nExample: €36,000/year in spending → €900,000 target.\n\n**The Belgian adjustment — your number is likely smaller:**\nBelgian state infrastructure covers costs that American FIRE plans budget privately:\n• The wettelijk pensioen provides a floor income in retirement.\n• The mutualiteit covers most healthcare costs (the out-of-pocket layer — remgeld, hospitalisatieverzekering — is far smaller than US private insurance costs).\n• Unemployment, sickness, and parental leave are statutorily protected during working years.\n\nFor a Belgian, the correct calculation is:\n25 × (annual spending − projected state pension amount) = target portfolio.\n\nIf your projected wettelijk pensioen covers €15,000/year and you need €36,000/year, you need to fund €21,000/year privately — requiring a portfolio of roughly €525,000, not €900,000.\n\n**Using the app:**\nThe Budget dashboard's 25\u00d7 card lets you enter your annual spending and your expected state pension. It computes the adjusted target automatically. Update the state pension figure as your career progresses — mypension.be shows a current projection.",
+          },
+          {
+            title: "Before a big purchase: three filters", type: "protocol",
+            what: "Before any purchase above your personal threshold, run three short questions: the Inner Scorecard test, the Utility vs. Status filter, and the six-month question. The goal is not to stop you spending — it is to make sure you know why you want what you want before you commit.",
+            why: "Most buyers' remorse is not about the money. It is about discovering, three months later, that the purchase was driven by how it would appear to others, or by a novelty that faded faster than expected. These filters surface that knowledge before the decision, not after.",
+            how: "**Filter 1 — The Inner Scorecard**\nAsk: am I doing this for myself, or partly to signal something to others? Most large purchases are a mix of both. The portion that is for others is almost always the portion that disappoints fastest — because others stop noticing within weeks, and so do you. There is no wrong answer; the question is whether you can name the mix honestly.\n\n**Filter 2 — Utility vs. Status**\nIdentify which part of the cost is utility (how the object functions in your life) and which part is status (how it signals something to others). A basic car gets you from A to B; everything above a reliable secondhand car is increasingly status. The exercise is not to refuse all status spending — it is to know which part is which, so the inevitable fading does not surprise you.\n\n**Filter 3 — The six-month question**\nThe brain adapts to any new baseline within roughly three months. Ask: how will I feel about this in six months — not in six days? If the honest answer is 'I probably won't notice it', that is the answer. If the answer is 'I will still use it daily and it will still matter', proceed with confidence.\n\n**In the app:**\nThe 'Log a big purchase' button (the shopping bag icon in the sidebar) walks you through these three filters before recording your decision. The record stays whether you proceed, decline, or park the decision for later.",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // ─── Seed function ────────────────────────────────────────────────────────────
@@ -768,6 +817,7 @@ function seedLibrary(db) {
   const insertTopic = db.prepare(
     "INSERT INTO library_topics (slug, title, icon, description, display_order) VALUES (?, ?, ?, ?, ?)"
   );
+  const maxDisplayOrder = db.prepare("SELECT COALESCE(MAX(display_order), -1) AS max_order FROM library_topics");
   const findCat     = db.prepare(
     "SELECT id FROM library_categories WHERE topic_id = ? AND title = ?"
   );
@@ -791,7 +841,14 @@ function seedLibrary(db) {
       if (existingTopic) {
         topicId = existingTopic.id;
       } else {
-        topicId = insertTopic.run(topic.slug, topic.title, topic.icon, topic.description, ti).lastInsertRowid;
+        // For topics with dynamicDisplayOrder, compute MAX + 1 at insert time
+        // rather than using the array index. This protects against future topics
+        // being added between deploys. The guard only runs on new-slug inserts;
+        // re-runs of existing slugs never touch display_order.
+        const displayOrder = topic.dynamicDisplayOrder
+          ? maxDisplayOrder.get().max_order + 1
+          : ti;
+        topicId = insertTopic.run(topic.slug, topic.title, topic.icon, topic.description, displayOrder).lastInsertRowid;
         topicsAdded++;
       }
 

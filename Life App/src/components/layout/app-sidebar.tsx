@@ -19,6 +19,7 @@ import {
   Wind,
   Bookmark,
   ShoppingBag,
+  PiggyBank,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -51,6 +52,7 @@ const LIBRARY_TOPICS: NavItem[] = [
   { title: "Running",      href: "/library/running",      icon: Footprints },
   { title: "Habit Design", href: "/library/habit-design", icon: BookOpen },
   { title: "Breathing",    href: "/library/breathing",    icon: Wind },
+  { title: "Budget",       href: "/library/budget",       icon: PiggyBank },
 ];
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
