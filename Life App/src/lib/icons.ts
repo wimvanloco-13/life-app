@@ -25,6 +25,13 @@ import {
   Phone,
   Baby,
   Cross,
+  // Investing-ladder category icons
+  TrendingUp,
+  Landmark,
+  Briefcase,
+  Shield,
+  CreditCard,
+  AlertTriangle,
   // Activity type icons
   Footprints,
   Mountain,
@@ -78,6 +85,13 @@ const ICON_MAP: Record<string, LucideIconComponent> = {
   phone: Phone,
   baby: Baby,
   cross: Cross,
+  // Investing-ladder category icons
+  "trending-up": TrendingUp,
+  landmark: Landmark,
+  briefcase: Briefcase,
+  shield: Shield,
+  "credit-card": CreditCard,
+  "alert-triangle": AlertTriangle,
   // Activity type icons
   footprints: Footprints,
   mountain: Mountain,
