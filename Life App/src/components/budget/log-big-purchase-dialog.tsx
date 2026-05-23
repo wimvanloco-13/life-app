@@ -77,7 +77,7 @@ export function LogBigPurchaseDialog({
   // Preflight fields
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState("_none");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
 
   // Filter answers
@@ -104,7 +104,7 @@ export function LogBigPurchaseDialog({
       setStep("preflight");
       setAmount("");
       setDescription("");
-      setCategoryId("");
+      setCategoryId("_none");
       setDate(format(new Date(), "yyyy-MM-dd"));
       setScorecardAnswer("");
       setUtilityStatusAnswer("");
@@ -140,7 +140,7 @@ export function LogBigPurchaseDialog({
           amount: amountNum,
           description: description.trim(),
           date,
-          categoryId: categoryId || null,
+          categoryId: categoryId && categoryId !== "_none" ? categoryId : null,
           scorecardAnswer: scorecardAnswer.trim() || null,
           utilityStatusAnswer: utilityStatusAnswer.trim() || null,
           sixMonthAnswer: sixMonthAnswer.trim() || null,
@@ -234,7 +234,7 @@ export function LogBigPurchaseDialog({
                     <SelectValue placeholder={categories.length === 0 ? "No categories — add one in the Categories tab" : "Select category"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="_none">None</SelectItem>
                     {categories.map((c) => (
                       <SelectItem key={c.id} value={String(c.id)}>
                         {c.name}
