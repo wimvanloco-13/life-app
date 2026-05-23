@@ -51,7 +51,7 @@ export function BudgetGoals() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [month, setMonth] = useState("");
-  const [categoryId, setCategoryId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("_none");
   const [notes, setNotes] = useState("");
 
   const fetchExpenses = useCallback(async () => {
@@ -76,7 +76,7 @@ export function BudgetGoals() {
     setName("");
     setAmount("");
     setMonth(`${currentYear}-01`);
-    setCategoryId("");
+    setCategoryId("_none");
     setNotes("");
     setDialogOpen(true);
   }
@@ -86,7 +86,7 @@ export function BudgetGoals() {
     setName(exp.name);
     setAmount(String(exp.amount));
     setMonth(exp.month);
-    setCategoryId(exp.categoryId != null ? String(exp.categoryId) : "");
+    setCategoryId(exp.categoryId != null ? String(exp.categoryId) : "_none");
     setNotes(exp.notes ?? "");
     setDialogOpen(true);
   }
@@ -102,7 +102,7 @@ export function BudgetGoals() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(), amount: amt, month,
-          categoryId: categoryId ? Number(categoryId) : null,
+          categoryId: categoryId && categoryId !== "_none" ? Number(categoryId) : null,
           notes: notes.trim() || null,
         }),
       });
@@ -113,7 +113,7 @@ export function BudgetGoals() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(), amount: amt, month,
-          categoryId: categoryId ? Number(categoryId) : null,
+          categoryId: categoryId && categoryId !== "_none" ? Number(categoryId) : null,
           notes: notes.trim() || null,
         }),
       });
@@ -264,7 +264,7 @@ export function BudgetGoals() {
                   <SelectValue placeholder="Select category (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="_none">None</SelectItem>
                   {categories.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       <span className="flex items-center gap-2">
