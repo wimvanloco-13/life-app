@@ -13,7 +13,7 @@ import {
   Settings,
   LogOut,
   Users,
-  Swords,
+  Volleyball,
   Footprints,
   BookOpen,
   Wind,
@@ -47,7 +47,7 @@ interface NavItem {
 }
 
 const LIBRARY_TOPICS: NavItem[] = [
-  { title: "Tennis",       href: "/library/tennis",       icon: Swords },
+  { title: "Tennis",       href: "/library/tennis",       icon: Volleyball },
   { title: "Climbing",     href: "/library/climbing",     icon: Mountain },
   { title: "Running",      href: "/library/running",      icon: Footprints },
   { title: "Habit Design", href: "/library/habit-design", icon: BookOpen },
