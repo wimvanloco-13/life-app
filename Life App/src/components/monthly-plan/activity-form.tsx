@@ -157,6 +157,17 @@ export function ActivityForm({
     }
   }, [open]);
 
+  // Auto-fill activity type from the linked goal when no type is selected yet.
+  // Runs both on new-activity creation (goal picker changes) and when editing
+  // an existing activity whose goal has a type linked.
+  useEffect(() => {
+    if (!open || goalId === "none" || activityTypeId !== "none") return;
+    const goal = goals.find((g) => g.id.toString() === goalId);
+    if (goal?.activityTypeId != null) {
+      setActivityTypeId(goal.activityTypeId.toString());
+    }
+  }, [open, goalId, goals]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function getDefaultEndTime(start: string): string {
     const [h, m] = start.split(":").map(Number);
     const endH = h + (m >= 30 ? 1 : 0);
@@ -334,10 +345,7 @@ export function ActivityForm({
                   if (roleId === "none" && goal && goal.roles.length > 0) {
                     setRoleId(goal.roles[0].id.toString());
                   }
-                  // Auto-fill activity type from goal's linked type (only when none selected yet).
-                  if (activityTypeId === "none" && goal?.activityTypeId != null) {
-                    setActivityTypeId(goal.activityTypeId.toString());
-                  }
+                  // Activity type auto-fill is handled by the useEffect below.
                 }}
               >
                 <SelectTrigger>

@@ -19,7 +19,7 @@ export async function GET(
   if (plan.length === 0) return NextResponse.json([]);
 
   const focusRows = await db
-    .select({ focusId: weeklyFocusGoals.id, goalId: goals.id, title: goals.title, description: goals.description, targetDate: goals.targetDate, status: goals.status, isCompleted: goals.isCompleted, createdAt: goals.createdAt, updatedAt: goals.updatedAt })
+    .select({ focusId: weeklyFocusGoals.id, goalId: goals.id, title: goals.title, description: goals.description, targetDate: goals.targetDate, status: goals.status, isCompleted: goals.isCompleted, activityTypeId: goals.activityTypeId, createdAt: goals.createdAt, updatedAt: goals.updatedAt })
     .from(weeklyFocusGoals)
     .innerJoin(goals, and(eq(weeklyFocusGoals.goalId, goals.id), eq(goals.userId, userId)))
     .where(eq(weeklyFocusGoals.weeklyPlanId, plan[0].id));
@@ -27,7 +27,7 @@ export async function GET(
   const goalIds = focusRows.map((r) => r.goalId);
   const roleMap = await attachRoles(goalIds, userId);
 
-  return NextResponse.json(focusRows.map((row) => ({ id: row.goalId, focusId: row.focusId, title: row.title, description: row.description, quadrant: deriveQuadrant(row.targetDate), targetDate: row.targetDate, status: row.status, isCompleted: row.isCompleted, createdAt: row.createdAt, updatedAt: row.updatedAt, roles: roleMap.get(row.goalId) ?? [] })));
+  return NextResponse.json(focusRows.map((row) => ({ id: row.goalId, focusId: row.focusId, title: row.title, description: row.description, quadrant: deriveQuadrant(row.targetDate), targetDate: row.targetDate, status: row.status, isCompleted: row.isCompleted, activityTypeId: row.activityTypeId, createdAt: row.createdAt, updatedAt: row.updatedAt, roles: roleMap.get(row.goalId) ?? [] })));
 }
 
 export async function POST(
