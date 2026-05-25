@@ -25,6 +25,7 @@ import {
   Phone,
   Baby,
   Cross,
+  CheckCircle,
   // Investing-ladder category icons
   TrendingUp,
   Landmark,
@@ -85,6 +86,7 @@ const ICON_MAP: Record<string, LucideIconComponent> = {
   phone: Phone,
   baby: Baby,
   cross: Cross,
+  "check-circle": CheckCircle,
   // Investing-ladder category icons
   "trending-up": TrendingUp,
   landmark: Landmark,

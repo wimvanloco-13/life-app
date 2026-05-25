@@ -653,6 +653,10 @@ if (oneShotPending && process.env.NODE_ENV === "production") {
   }
 }
 
+// ─── 6b. Fix library topic icons ─────────────────────────────────────────────
+// Idempotent: guarded by the old icon value.
+db.exec(`UPDATE library_topics SET icon = 'Volleyball' WHERE slug = 'tennis' AND icon = 'Swords'`);
+
 // ─── 7. Seed library content ─────────────────────────────────────────────────
 // Idempotent — safe to call on every deploy. Only inserts rows that are absent.
 

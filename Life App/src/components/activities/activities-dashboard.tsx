@@ -300,14 +300,14 @@ export function ActivitiesDashboard() {
       <Card className="border-border/50 shadow-sm">
         <CardHeader>
           <CardTitle className="text-base">Activities by Role</CardTitle>
-          <CardDescription>Total scheduled activities per role</CardDescription>
+          <CardDescription>Completed activities per role (all time)</CardDescription>
         </CardHeader>
         <CardContent>
           {data.activityByRole.length === 0 ? (
             <EmptyState
               icon={Dumbbell}
               title="No activities yet"
-              description="Schedule some activities to see your breakdown by role."
+              description="Complete some activities to see your breakdown by role."
             />
           ) : (
             <div className="space-y-3">

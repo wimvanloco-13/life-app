@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
-  Swords,
+  Volleyball,
   Mountain,
   Footprints,
   BookOpen,
   Wind,
   BookMarked,
+  PiggyBank,
   Plus,
   type LucideIcon,
 } from "lucide-react";
@@ -25,11 +26,12 @@ import { LibraryToc } from "./library-toc";
 import { LibraryAddCategoryDialog } from "./library-add-category-dialog";
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  Swords,
+  Volleyball,
   Mountain,
   Footprints,
   BookOpen,
   Wind,
+  PiggyBank,
 };
 
 function resolveIcon(name: string): LucideIcon {

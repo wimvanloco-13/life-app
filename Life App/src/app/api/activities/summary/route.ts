@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
   }
 
   const allRoles = await db.select().from(roles).where(eq(roles.userId, userId));
-  const allActivities = await db.select({ id: activities.id, roleId: activities.roleId }).from(activities).where(eq(activities.userId, userId));
+  const allActivities = await db.select({ id: activities.id, roleId: activities.roleId }).from(activities).where(and(eq(activities.userId, userId), eq(activities.isCompleted, true)));
 
   const roleCounts: Record<number, number> = {};
   for (const a of allActivities) {
