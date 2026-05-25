@@ -434,6 +434,11 @@ export function DailyView() {
   const activeCarryForward = carryForward.filter((a) => !a.isCompleted);
 
   const completedCount = activities.filter((a) => a.isCompleted).length;
+  // Completed scheduled activities that have no linked log — shown as simple
+  // entries in the Completed Activities panel alongside activityLogs rows.
+  const completedWithoutLog = activities.filter(
+    (a) => a.isCompleted && !a.linkedLogId
+  );
 
   return (
     <div className="px-6 py-8 space-y-6 animate-fade-up">
@@ -733,7 +738,7 @@ export function DailyView() {
               </CardContent>
             </Card>
 
-            {activityLogs.length > 0 && (
+            {(activityLogs.length > 0 || completedWithoutLog.length > 0) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="font-[family-name:var(--font-display)] text-base font-semibold">Completed Activities</CardTitle>
@@ -761,6 +766,20 @@ export function DailyView() {
                               {log.notes}
                             </p>
                           )}
+                        </div>
+                      </div>
+                    ))}
+                    {completedWithoutLog.map((act) => (
+                      <div
+                        key={`act-${act.id}`}
+                        className="flex items-start gap-3 rounded-lg border border-dashed p-3 opacity-80"
+                      >
+                        <LucideIcon name={act.activityTypeId ? "activity" : "check-circle"} />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{act.title}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            Marked complete · no log recorded
+                          </div>
                         </div>
                       </div>
                     ))}

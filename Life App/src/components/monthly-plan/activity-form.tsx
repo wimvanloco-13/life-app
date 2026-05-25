@@ -329,16 +329,14 @@ export function ActivityForm({
                     setSessionType("training");
                     return;
                   }
-                  // Phase 5 role auto-fill: when the user picks a goal
-                  // while no role is selected, pre-fill the role with
-                  // the goal's first linked role. Manual role changes
-                  // afterwards are preserved (we only auto-fill from
-                  // "none").
-                  if (roleId === "none") {
-                    const goal = goals.find((g) => g.id === parseInt(v));
-                    if (goal && goal.roles.length > 0) {
-                      setRoleId(goal.roles[0].id.toString());
-                    }
+                  const goal = goals.find((g) => g.id === parseInt(v));
+                  // Auto-fill role from goal's first linked role (only when no role selected yet).
+                  if (roleId === "none" && goal && goal.roles.length > 0) {
+                    setRoleId(goal.roles[0].id.toString());
+                  }
+                  // Auto-fill activity type from goal's linked type (only when none selected yet).
+                  if (activityTypeId === "none" && goal?.activityTypeId != null) {
+                    setActivityTypeId(goal.activityTypeId.toString());
                   }
                 }}
               >
