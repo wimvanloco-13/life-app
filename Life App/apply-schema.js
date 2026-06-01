@@ -578,6 +578,7 @@ db.exec(`UPDATE spending_categories SET icon = 'package' WHERE name = 'Other' AN
 db.exec(`UPDATE activity_types SET icon = 'footprints' WHERE name = 'Running' AND icon = '🏃'`);
 db.exec(`UPDATE activity_types SET icon = 'mountain' WHERE name = 'Hiking' AND icon = '🥾'`);
 db.exec(`UPDATE activity_types SET icon = 'circle-dot' WHERE name = 'Tennis' AND icon = '🎾'`);
+db.exec(`UPDATE activity_types SET icon = 'tennis-racket' WHERE name = 'Tennis' AND icon = 'circle-dot'`);
 db.exec(`UPDATE activity_types SET icon = 'dumbbell' WHERE name = 'Climbing (Gym)' AND icon = '🧗'`);
 db.exec(`UPDATE activity_types SET icon = 'mountain-snow' WHERE name = 'Climbing (Outdoor)' AND icon = '⛰️'`);
 db.exec(`UPDATE activity_types SET icon = 'book-open' WHERE name = 'Reading' AND icon = '📖'`);
@@ -673,6 +674,12 @@ try {
 } catch (err) {
   console.error("apply-schema: library seed failed (non-fatal, will retry on next deploy):", err.message);
 }
+
+// ─── 8. Icon upgrades ─────────────────────────────────────────────────────────
+// Idempotent: each UPDATE is guarded by the old icon value.
+// The library_topics UPDATE runs after the seed (step 7) so it covers both
+// fresh DBs (seed just inserted the row with 'Volleyball') and existing DBs.
+db.exec(`UPDATE library_topics SET icon = 'TennisRacket' WHERE slug = 'tennis' AND icon = 'Volleyball'`);
 
 db.close();
 console.log("\napply-schema: done.");

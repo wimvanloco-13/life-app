@@ -1,4 +1,5 @@
 import type { LucideProps } from "lucide-react";
+import TennisRacket from "@/components/ui/icons/tennis-racket";
 import {
   // Spending category icons
   Utensils,
@@ -95,6 +96,7 @@ const ICON_MAP: Record<string, LucideIconComponent> = {
   "credit-card": CreditCard,
   "alert-triangle": AlertTriangle,
   // Activity type icons
+  "tennis-racket": TennisRacket,
   footprints: Footprints,
   mountain: Mountain,
   "circle-dot": CircleDot,
@@ -159,6 +161,7 @@ export const CATEGORY_ICONS: IconDef[] = [
 
 /** Curated icon set for activity types. */
 export const ACTIVITY_TYPE_ICONS: IconDef[] = [
+  { name: "tennis-racket", label: "Tennis" },
   { name: "footprints", label: "Running" },
   { name: "mountain", label: "Hiking" },
   { name: "circle-dot", label: "Ball Sport" },
