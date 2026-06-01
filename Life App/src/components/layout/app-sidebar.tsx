@@ -13,7 +13,6 @@ import {
   Settings,
   LogOut,
   Users,
-  Volleyball,
   Footprints,
   BookOpen,
   Wind,
@@ -22,6 +21,7 @@ import {
   PiggyBank,
   type LucideIcon,
 } from "lucide-react";
+import TennisRacket from "@/components/ui/icons/tennis-racket";
 import {
   Sidebar,
   SidebarContent,
@@ -47,7 +47,7 @@ interface NavItem {
 }
 
 const LIBRARY_TOPICS: NavItem[] = [
-  { title: "Tennis",       href: "/library/tennis",       icon: Volleyball },
+  { title: "Tennis",       href: "/library/tennis",       icon: TennisRacket },
   { title: "Climbing",     href: "/library/climbing",     icon: Mountain },
   { title: "Running",      href: "/library/running",      icon: Footprints },
   { title: "Habit Design", href: "/library/habit-design", icon: BookOpen },

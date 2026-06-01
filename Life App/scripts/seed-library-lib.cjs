@@ -17,7 +17,7 @@
 const SEED_DATA = [
   // ── TENNIS ─────────────────────────────────────────────────────────────────
   {
-    slug: "tennis", title: "Tennis", icon: "Volleyball",
+    slug: "tennis", title: "Tennis", icon: "TennisRacket",
     description: "Stroke mechanics, physical conditioning, mental game, and match tactics for the recreational player.",
     categories: [
       {

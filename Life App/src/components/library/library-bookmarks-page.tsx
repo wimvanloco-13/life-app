@@ -7,21 +7,25 @@ import {
   Footprints,
   BookOpen,
   Wind,
+  Wallet,
   Bookmark,
   BookMarked,
   type LucideIcon,
 } from "lucide-react";
+import TennisRacket from "@/components/ui/icons/tennis-racket";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BookmarkedItem, LibraryItemWithBookmark } from "@/types";
 import { LibraryItemRow } from "./library-item-row";
 import { LibraryEmptyState } from "./library-empty-state";
 
 const ICON_MAP: Record<string, LucideIcon> = {
+  TennisRacket,
   Swords,
   Mountain,
   Footprints,
   BookOpen,
   Wind,
+  Wallet,
 };
 
 function resolveIcon(name: string): LucideIcon {
