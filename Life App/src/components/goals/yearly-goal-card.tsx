@@ -169,16 +169,14 @@ export function YearlyGoalCard({
           )}
 
           <div className="flex items-center gap-2 pt-1">
-            {!trainingPlan && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={onLogTally}
-              >
-                <Plus className="mr-1 h-3 w-3" /> Log Progress
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={onLogTally}
+            >
+              <Plus className="mr-1 h-3 w-3" /> Log Progress
+            </Button>
             {!trainingPlan && onCreateTrainingPlan && (
               <Button
                 variant="outline"
