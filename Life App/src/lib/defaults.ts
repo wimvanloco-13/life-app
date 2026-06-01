@@ -42,7 +42,7 @@ export const DEFAULT_ACTIVITY_TYPES = [
   {
     name: "Tennis",
     type: "mixed" as const,
-    icon: "circle-dot",
+    icon: "tennis-racket",
     isTracked: false,
     defaultCalories: 500,
     defaultSteps: 8000,

@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import TennisRacket from "@/components/ui/icons/tennis-racket";
 import {
-  Volleyball,
   Mountain,
   Footprints,
   BookOpen,
@@ -26,7 +26,7 @@ import { LibraryToc } from "./library-toc";
 import { LibraryAddCategoryDialog } from "./library-add-category-dialog";
 
 const ICON_MAP: Record<string, LucideIcon> = {
-  Volleyball,
+  TennisRacket,
   Mountain,
   Footprints,
   BookOpen,
