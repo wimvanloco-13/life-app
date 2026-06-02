@@ -65,20 +65,6 @@ const METRIC_CONFIG: {
   },
 ];
 
-function defaultProfile(userId = ""): UserBodyProfile {
-  return {
-    id: null,
-    userId,
-    dateOfBirth: null,
-    biologicalSex: null,
-    heightCm: null,
-    waistCm: null,
-    waistCmUpdatedAt: null,
-    createdAt: "",
-    updatedAt: "",
-  };
-}
-
 export function BodyMetricsView() {
   const [allMetrics, setAllMetrics] = useState<BodyMetric[]>([]);
   const [profile, setProfile] = useState<UserBodyProfile | null>(null);
@@ -98,19 +84,22 @@ export function BodyMetricsView() {
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
-    const [metricsRes, profileRes] = await Promise.all([
-      fetch("/api/body-metrics"),
-      fetch("/api/body-profile"),
-    ]);
-    const metricsData = await metricsRes.json();
-    setAllMetrics(metricsData);
-    if (profileRes.ok) {
-      const profileData = await profileRes.json() as UserBodyProfile;
-      setProfile(profileData);
-    } else {
-      setProfile(defaultProfile());
+    try {
+      const [metricsRes, profileRes] = await Promise.all([
+        fetch("/api/body-metrics"),
+        fetch("/api/body-profile"),
+      ]);
+      const metricsData = await metricsRes.json() as BodyMetric[];
+      setAllMetrics(metricsData);
+      if (profileRes.ok) {
+        const profileData = await profileRes.json() as UserBodyProfile;
+        setProfile(profileData);
+      } else {
+        setProfile({ id: null, userId: "", dateOfBirth: null, biologicalSex: null, heightCm: null, waistCm: null, waistCmUpdatedAt: null, createdAt: "", updatedAt: "" });
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {

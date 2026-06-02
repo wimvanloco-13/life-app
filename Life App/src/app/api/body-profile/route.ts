@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { userBodyProfiles } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import type { UserBodyProfile } from "@/types";
 
@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest) {
   if (body.dateOfBirth !== undefined && body.dateOfBirth !== null) {
     const dob = String(body.dateOfBirth);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || isNaN(Date.parse(dob))) {
-      return NextResponse.json({ error: "Date of birth cannot be in the future" }, { status: 400 });
+      return NextResponse.json({ error: "Date of birth must be a valid date" }, { status: 400 });
     }
     if (dob > now.slice(0, 10)) {
       return NextResponse.json({ error: "Date of birth cannot be in the future" }, { status: 400 });
@@ -98,37 +98,27 @@ export async function PATCH(request: NextRequest) {
     updates.waistCmUpdatedAt = body.waistCm != null ? now : null;
   }
 
-  // ── Upsert: update if row exists, insert otherwise ───────────────────────
-  const existing = await db
-    .select()
-    .from(userBodyProfiles)
-    .where(eq(userBodyProfiles.userId, userId));
+  // ── Atomic upsert — eliminates the race condition on first-ever PATCH ────
+  const [resultRow] = await db
+    .insert(userBodyProfiles)
+    .values({
+      userId,
+      dateOfBirth: updates.dateOfBirth ?? null,
+      biologicalSex: updates.biologicalSex ?? null,
+      heightCm: updates.heightCm ?? null,
+      waistCm: updates.waistCm ?? null,
+      waistCmUpdatedAt: updates.waistCmUpdatedAt ?? null,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: userBodyProfiles.userId,
+      set: {
+        ...updates,
+        updatedAt: sql`excluded.updated_at`,
+      },
+    })
+    .returning();
 
-  let resultRow: typeof userBodyProfiles.$inferSelect;
-
-  if (existing.length > 0) {
-    const [updated] = await db
-      .update(userBodyProfiles)
-      .set(updates)
-      .where(eq(userBodyProfiles.userId, userId))
-      .returning();
-    resultRow = updated!;
-  } else {
-    const [inserted] = await db
-      .insert(userBodyProfiles)
-      .values({
-        userId,
-        dateOfBirth: updates.dateOfBirth ?? null,
-        biologicalSex: updates.biologicalSex ?? null,
-        heightCm: updates.heightCm ?? null,
-        waistCm: updates.waistCm ?? null,
-        waistCmUpdatedAt: updates.waistCmUpdatedAt ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-    resultRow = inserted!;
-  }
-
-  return NextResponse.json(rowToProfile(resultRow));
+  return NextResponse.json(rowToProfile(resultRow!));
 }

@@ -149,7 +149,7 @@ function WeightCard({
                   result.waistCategory === "High risk"
                     ? "text-destructive font-medium"
                     : result.waistCategory === "Elevated risk"
-                    ? "text-yellow-600 dark:text-yellow-500 font-medium"
+                    ? "text-[var(--palette-amber)] font-medium"
                     : "text-foreground font-medium"
                 }>
                   {result.waistCategory}
@@ -159,8 +159,6 @@ function WeightCard({
             )}
           </div>
         )}
-
-        {hasWaist && !hasWaistAndHeight && null}
 
         <p className="text-xs text-muted-foreground border-t pt-2">
           BMI does not distinguish muscle from fat. If you carry significant muscle mass, this figure may overstate adiposity.
@@ -193,7 +191,20 @@ function Vo2maxCard({
   const hasDob = !!profile?.dateOfBirth;
   const hasSex = !!profile?.biologicalSex;
 
-  if (!latest) return null;
+  if (!latest) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">VO2max</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Log a VO2max reading above to see how it compares.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!hasDob && !hasSex) {
     return (
@@ -301,7 +312,20 @@ function RestingHrCard({
   const hasDob = !!profile?.dateOfBirth;
   const hasSex = !!profile?.biologicalSex;
 
-  if (!latest) return null;
+  if (!latest) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Resting HR</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Log a resting heart rate above to see how it compares.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!hasDob || !hasSex) {
     return (
@@ -373,43 +397,32 @@ export function BodyMetricsFeedback({
   // Client owns "today" — follows the same pattern as computeStreaks in habit-streaks.ts
   const today = new Date().toLocaleDateString("sv-SE");
 
-  const hasAnyMetric =
-    allMetrics.some((m) => m.metricType === "weight") ||
-    allMetrics.some((m) => m.metricType === "vo2max") ||
-    allMetrics.some((m) => m.metricType === "resting_hr");
-
   return (
     <div className="space-y-4">
       <h2 className="text-base font-semibold">Your metrics</h2>
 
-      {!hasAnyMetric ? (
-        <p className="text-sm text-muted-foreground">
-          Log a measurement above to see your interpretation here.
-        </p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
-          <WeightCard
-            allMetrics={allMetrics}
-            profile={profile}
-            today={today}
-            heightRef={heightRef}
-          />
-          <Vo2maxCard
-            allMetrics={allMetrics}
-            profile={profile}
-            today={today}
-            dobRef={dobRef}
-            sexRef={sexRef}
-          />
-          <RestingHrCard
-            allMetrics={allMetrics}
-            profile={profile}
-            today={today}
-            dobRef={dobRef}
-            sexRef={sexRef}
-          />
-        </div>
-      )}
+      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
+        <WeightCard
+          allMetrics={allMetrics}
+          profile={profile}
+          today={today}
+          heightRef={heightRef}
+        />
+        <Vo2maxCard
+          allMetrics={allMetrics}
+          profile={profile}
+          today={today}
+          dobRef={dobRef}
+          sexRef={sexRef}
+        />
+        <RestingHrCard
+          allMetrics={allMetrics}
+          profile={profile}
+          today={today}
+          dobRef={dobRef}
+          sexRef={sexRef}
+        />
+      </div>
 
       <p className="text-xs text-muted-foreground border rounded-md p-3">
         These are population reference ranges and screening tools, not a diagnosis. Readings outside a normal range, especially if accompanied by symptoms, warrant a consultation with a healthcare professional.
