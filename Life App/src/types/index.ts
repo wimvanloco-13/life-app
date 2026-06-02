@@ -616,3 +616,24 @@ export interface BookmarkedItem extends LibraryItem {
   categoryTitle: string;
 }
 
+// ─── Body Profile ─────────────────────────────────────────
+
+export interface UserBodyProfile {
+  id: number | null;
+  userId: string;
+  dateOfBirth: string | null;
+  biologicalSex: 'male' | 'female' | null;
+  heightCm: number | null;
+  waistCm: number | null;
+  waistCmUpdatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserBodyProfileInput {
+  dateOfBirth?: string | null;
+  biologicalSex?: 'male' | 'female' | null;
+  heightCm?: number | null;
+  waistCm?: number | null;
+}
+
