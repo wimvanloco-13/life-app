@@ -1,6 +1,6 @@
 ﻿# Life App -- Feature Roadmap
 
-> Last updated: 2026-05-22.
+> Last updated: 2026-06-01.
 
 ## Product Vision
 
@@ -116,21 +116,20 @@ Each feature below becomes a separate spec-kit specification. Features are order
 ### Lucide Icon System Refactor
 
 **Spec ID**: `lucide-icon-refactor`
-**Status**: Planned
+**Status**: Built (complete)
 
-**What it does**: Replaces the emoji icon system used in spending categories and activity types with named Lucide icons. Currently, both `spending_categories.icon` and `activity_types.icon` store arbitrary emoji strings rendered via a custom `EmojiIcon` component. This conflicts with the design system's core rule — Lucide for all UI icons — and produces inconsistent rendering across platforms and sizes.
+**What it does**: Replaces the emoji icon system used in spending categories and activity types with named Lucide icons. Previously both `spending_categories.icon` and `activity_types.icon` stored arbitrary emoji strings rendered via a custom `EmojiIcon` component, which conflicted with the design system's core rule (Lucide for all UI icons) and rendered inconsistently across platforms and sizes.
 
-The refactor introduces three new shared UI primitives (icon registry, `LucideIcon` rendering component, `IconPicker` grid), updates all default icon values, migrates existing database records in `apply-schema.js`, and replaces every `EmojiIcon` usage across 12 component files. The `icon TEXT` column is unchanged — Lucide icon names are strings and slot directly into the existing schema.
+The refactor introduced shared UI primitives (icon registry, `LucideIcon` rendering component, `IconPicker` grid), updated all default icon values, migrated existing database records in `apply-schema.js`, and replaced every `EmojiIcon` usage. The `icon TEXT` column is unchanged — Lucide icon names are strings and slot directly into the existing schema.
 
-**What will be built**:
-- `src/lib/icons.ts` — curated icon sets for categories (`CATEGORY_ICONS`) and activity types (`ACTIVITY_TYPE_ICONS`), plus `getLucideIcon(name)` lookup function
-- `src/components/ui/lucide-icon.tsx` — drop-in replacement for `EmojiIcon`; renders Lucide icon by name string with emoji fallback for legacy values
-- `src/components/ui/icon-picker.tsx` — reusable grid picker component used in both category and activity type forms
+**What has been built**:
+- `src/lib/icons.ts` — curated icon sets for categories and activity types, plus a `getLucideIcon(name)` lookup function
+- `src/components/ui/lucide-icon.tsx` — renders a Lucide icon by name string with an emoji fallback for legacy values
+- `src/components/ui/icon-picker.tsx` — reusable grid picker used in both category and activity type forms
 - Updated defaults in `src/lib/defaults.ts` — emoji strings replaced with Lucide names
-- Data migration in `apply-schema.js` — UPDATE statements for all default-seeded categories and activity types
-- Updated forms: `categories-page.tsx` and `sport-form.tsx` — emoji picker replaced with `IconPicker`
-- Updated rendering in 12 component files — `EmojiIcon` replaced with `LucideIcon` throughout
-- `emoji-icon.tsx` — deleted once all usages are replaced
+- Data migration in `apply-schema.js` — idempotent `UPDATE` statements for default-seeded categories and activity types (`AND icon = '<emoji>'` guard makes them no-ops once migrated)
+- Forms updated to use `IconPicker`; all rendering switched from `EmojiIcon` to `LucideIcon`
+- `emoji-icon.tsx` deleted (only a single explanatory comment reference to the old name remains, in `lucide-icon.tsx`)
 
 **Schema changes**: None. The `icon TEXT` column is unchanged.
 
@@ -143,22 +142,49 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 ### Savings Redesign
 
 **Spec ID**: `savings-redesign`
-**Status**: Planned
+**Status**: Built (complete)
 
 **What it does**: Replaces the broken "leftover money = savings" calculation with an explicit model. Savings are only what you deliberately log. A "Savings" spending category tracks contributions. A "Savings Withdrawal" category tracks dips. A starting balance captures what you already had before tracking began. The savings goal progress on the Dashboard reflects reality.
 
-**What will be built**:
-- "Savings" and "Savings Withdrawal" default spending categories (added to `defaults.ts` + seeded for existing users)
-- `savingsStartingBalance` column on `budget_settings` (one migration)
-- New savings calculation: `starting balance + SUM(Savings entries) − SUM(Savings Withdrawal entries)`
+**What has been built**:
+- "Savings" and "Savings Withdrawal" spending categories seeded for existing users (idempotent, in `apply-schema.js`)
+- `savingsStartingBalance` column on `budget_settings` (additive migration, default 0)
+- New savings calculation: `starting balance + SUM(Savings entries) + SUM(recurring Savings fixed costs, capped at the current month) − SUM(Savings Withdrawal entries)`
 - Starting balance field in Budget Settings dialog
-- Savings goal progress card promoted to the Dashboard tab (currently only in Budget Goals tab)
+- Savings goal progress reflected in `GET /api/budget/summary` (`savingsGoal.saved` / `percentage`)
 
 **Schema changes**: Add `savings_starting_balance` to `budget_settings`. No other table changes.
 
 **Routes modified**: `GET/PATCH /api/budget-settings`, `GET /api/budget/summary` (savings calculation rewrite)
 
 **Dependencies**: Feature 3 (Budget Management — built).
+
+---
+
+### Budget Expansion (Conscious Spending, Buckets, Investing Ladder, 25× Target, Moment Filter)
+
+**Spec / working docs**: `Life App/feature requests/budget-expansion/` (`housel-framings.md`)
+**Status**: Built (complete)
+**Completed**: 2026-06-01
+
+**What it does**: Expands Budget Management from month-to-month bookkeeping into a values-driven money tool. Adds (1) a Ramit Sethi-style **Conscious Spending Plan** that buckets every category into Fixed / Invest / Save / Guilt-Free with target percentages of income; (2) an **investing ladder** that shows which financial priorities are filled; (3) a **25× FIRE target** derived from trailing annual spending; and (4) a Morgan Housel-inspired **"Log a big purchase" (Moment) filter** that walks the user through three reflective questions (inner scorecard, utility vs. status, the six-month question) before a large purchase, recording the decision (proceeded / declined / parked).
+
+**What has been built**:
+- **Buckets**: `spending_categories.bucket` (`fixed` | `invest` | `save` | `guilt_free` | null) + `budget_settings.bucketTargets` JSON (defaults `50/10/10/30`). Summary returns per-bucket actuals as a % of total income, with an `unassigned` rollup.
+- **Investing ladder**: seven rungs (emergency cash → debt payoff → employer pension → pensioensparen → langetermijnsparen → ETF). Emergency-cash rung fills when computed savings ≥ 3× average monthly fixed costs; the rest fill when an `invest`-bucket category name matches. Seven hidden ladder categories seeded in `apply-schema.js`.
+- **25× target**: `activeAnnualSpending = targetAnnualSpending override ?? trailing-12-month spending`; `target = ×25`, `adjustedTarget = max(0, (annual − statePension) × 25)`. Backed by `budget_settings.targetAnnualSpending` + `statePensionAnnualAmount`.
+- **Moment filter**: `moment_logs` table + `LogBigPurchaseDialog` (sidebar "Log a big purchase" button, threshold from `budget_settings.momentThreshold`, default 200). Three Housel-framed reflection steps, decision recorded. Optionally also logs the purchase as a real `spending_entries` row (only when proceeded) via `spendingEntryId` — intentionally decoupled (deleting one never cascades to the other).
+- **Itemized spending**: `spending_entries.is_itemized` distinguishes line entries from lump-sum "category total" entries.
+- **Testable computations**: bucket validation, ladder derivation, and 25× target extracted to `src/lib/budget-computations.ts` with unit tests (`budget-computations.test.ts`, `moment-logs.test.ts`). All three derived blocks are computed at read time — nothing is stored.
+
+**Schema changes**: New `moment_logs` table. New columns: `budget_settings.bucket_targets`, `moment_threshold` (default 200), `target_annual_spending`, `state_pension_annual_amount`; `spending_categories.bucket`; `spending_entries.is_itemized` (default 1). All additive, idempotent in `apply-schema.js`.
+
+**Routes added**: `GET/POST /api/moment-logs`, `PATCH/DELETE /api/moment-logs/:id`
+**Routes modified**: `GET/PATCH /api/budget-settings` (new fields), `GET /api/budget/summary` (`buckets`, `investingLadder`, `target25x`)
+
+**Source material**: `housel-framings.md` (Morgan Housel filter copy; *The Psychology of Money* / *The Art of Spending Money*) and Ramit Sethi's Conscious Spending Plan.
+
+**Dependencies**: Feature 3 (Budget Management), Savings Redesign (shared savings/starting-balance calculation).
 
 ---
 

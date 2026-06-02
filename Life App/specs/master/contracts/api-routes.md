@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-05-22. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), and **Library** (full — read-only, bookmarks, and admin CRUD). Onboarding Wizard removed.
+> Last updated: 2026-06-01. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), **Savings Redesign** + **Budget Expansion** (`/api/budget-settings` new fields, `/api/budget/summary` buckets + investing ladder + 25× target, `/api/moment-logs`). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -1020,6 +1020,143 @@ Update a planned expense. Accepts any subset of fields.
 ### DELETE /api/planned-expenses/:id
 
 Delete a planned expense.
+
+---
+
+## Budget Settings
+
+One row per user, auto-created on first access. Carries savings configuration plus the **Budget Expansion** fields (buckets, FIRE target, big-purchase threshold). The spending / income / fixed-cost CRUD routes (`/api/spending`, `/api/income`, `/api/fixed-costs`, `/api/spending-categories`) are part of Feature 3 and unchanged here, except: `spending_entries` now carries `isItemized` (default `true`; `false` for lump-sum "category total" entries) and `spending_categories` now carries `bucket` (`'fixed' | 'invest' | 'save' | 'guilt_free' | null`).
+
+### GET /api/budget-settings
+
+Returns the user's budget settings (auto-creates defaults: `EUR`, `monthlySavingsTarget: 0`).
+
+**Response** `200`:
+```json
+{
+  "id": 1,
+  "currency": "EUR",
+  "monthlySavingsTarget": 0,
+  "savingsGoalTotal": 12000,
+  "savingsGoalTargetDate": "2026-12-31",
+  "savingsStartingBalance": 5000,
+  "bucketTargets": { "fixed": 50, "invest": 10, "save": 10, "guilt_free": 30 },
+  "momentThreshold": 200,
+  "targetAnnualSpending": null,
+  "statePensionAnnualAmount": null,
+  "createdAt": "2026-05-01T12:00:00.000Z",
+  "updatedAt": "2026-05-01T12:00:00.000Z"
+}
+```
+
+### PATCH /api/budget-settings
+
+Update settings. Accepts any subset of: `currency`, `monthlySavingsTarget`, `savingsGoalTotal`, `savingsGoalTargetDate`, `savingsStartingBalance`, `bucketTargets`, `momentThreshold`, `targetAnnualSpending`, `statePensionAnnualAmount`.
+
+- `bucketTargets`: object `{ fixed, invest, save, guilt_free }`, each `0–100`, or `null` to clear. Each value is validated; an out-of-range or non-numeric value returns `400`. Stored as a JSON string.
+- `momentThreshold`: clamped to `≥ 0`; `null` resets to `200`.
+- `targetAnnualSpending`, `statePensionAnnualAmount`: clamped to `≥ 0`, or `null`.
+
+**Response** `200`: The updated settings object.
+
+---
+
+## Budget Summary
+
+### GET /api/budget/summary?month=YYYY-MM
+
+Aggregated budget dashboard data for a month (defaults to the current month). **Budget Expansion** extends the response with `buckets`, `investingLadder`, and `target25x`; **Savings Redesign** drives `savingsGoal.saved` from explicit `Savings` / `Savings Withdrawal` entries plus `savingsStartingBalance`.
+
+**Response** `200` (abridged):
+```json
+{
+  "month": "2026-06",
+  "totalIncome": 4000,
+  "totalFixedCosts": 1500,
+  "monthlySavingsTarget": 500,
+  "spendingBudget": 2000,
+  "totalSpent": 1200,
+  "remaining": 800,
+  "dailyAllowance": 26.67,
+  "daysLeft": 30,
+  "spendingByCategory": [{ "category": "Food", "amount": 320, "icon": "utensils", "color": "#EF4444" }],
+  "savingsGoal": { "total": 12000, "targetDate": "2026-12-31", "saved": 5400, "percentage": 45 },
+  "totalPlannedExpenses": 0,
+  "plannedExpenses": [],
+  "buckets": [
+    { "key": "fixed", "label": "Fixed", "targetPct": 50, "actualPct": 37.5, "actualAmount": 1500 },
+    { "key": "unassigned", "label": "Unassigned", "targetPct": null, "actualPct": 5, "actualAmount": 200 }
+  ],
+  "investingLadder": [
+    { "key": "emergency_cash", "label": "Emergency Cash (3 months)", "filled": true, "categoryMapped": true }
+  ],
+  "target25x": {
+    "computedAnnualSpending": 24000,
+    "overrideAnnualSpending": null,
+    "activeAnnualSpending": 24000,
+    "target": 600000,
+    "adjustedTarget": 600000
+  }
+}
+```
+
+- **Buckets** are expressed as a percentage of `totalIncome` (Sethi-style), not of spending budget. Each active spending category and active fixed cost is summed into its mapped bucket; anything with `bucket = null` rolls into an `"unassigned"` bucket (only present when its amount > 0). Targets come from `budget_settings.bucketTargets` (or defaults `50/10/10/30`).
+- **Investing ladder** rungs: `emergency_cash` (filled when computed savings ≥ 3× average monthly fixed costs over the last 3 completed months) plus six rungs that are `filled` when the user has an `invest`-bucket category whose name matches the rung.
+- **25× target**: `activeAnnualSpending = targetAnnualSpending override ?? trailing-12-month spending`. `target = activeAnnualSpending × 25`; `adjustedTarget = max(0, (activeAnnualSpending − statePensionAnnualAmount) × 25)`.
+
+All three derived blocks are computed at read time in `src/lib/budget-computations.ts` (unit-tested) — none are stored.
+
+---
+
+## Moment Logs (Budget Expansion)
+
+"Money moment" records — a deliberate pause before a large purchase, reflected through three Housel-inspired filters. Backs the "Log a big purchase" dialog in the sidebar.
+
+### GET /api/moment-logs
+
+Returns the user's moment logs (most recent first), joined with `categoryName`. Query params: `?limit=50` (1–200), `?offset=0`, `?decision=proceeded|declined|parked`.
+
+**Response** `200`:
+```json
+{
+  "logs": [
+    {
+      "id": 1,
+      "userId": "abc123",
+      "date": "2026-06-01",
+      "amount": 1200,
+      "description": "New laptop",
+      "categoryId": 4,
+      "categoryName": "Amusement",
+      "spendingEntryId": 87,
+      "scorecardAnswer": "Mostly for me — I code daily.",
+      "utilityStatusAnswer": "90% utility, 10% status.",
+      "sixMonthAnswer": "Still useful; part of the toolkit.",
+      "decision": "proceeded",
+      "createdAt": "2026-06-01T10:00:00.000Z",
+      "updatedAt": "2026-06-01T10:00:00.000Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+### POST /api/moment-logs
+
+Create a moment log. Body: `amount` (positive, required), `description` (required), `date` (`YYYY-MM-DD`, required), `decision` (`proceeded` | `declined` | `parked`, required), optional `categoryId`, `scorecardAnswer`, `utilityStatusAnswer`, `sixMonthAnswer`, and `alsoLogAsSpending` (boolean).
+
+When `alsoLogAsSpending` is `true` **and** `decision === "proceeded"`, the handler also inserts a linked `spending_entries` row (in the same transaction) and stores its id as `spendingEntryId`. `categoryId` must belong to the user (else `403`).
+
+**Response** `201`: The created moment log.
+**Response** `400`: Validation error. **`403`**: `categoryId` not owned.
+
+### PATCH /api/moment-logs/:id
+
+Update a moment log. Accepts `decision`, `scorecardAnswer`, `utilityStatusAnswer`, `sixMonthAnswer`. Returns `404` for unknown/cross-user ids.
+
+### DELETE /api/moment-logs/:id
+
+Delete a moment log. Intentionally does **not** cascade to the linked `spending_entries` row (decoupled per spec §3.1). Returns `204`, or `404` for unknown/cross-user ids.
 
 ---
 

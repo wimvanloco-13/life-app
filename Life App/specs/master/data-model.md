@@ -1,6 +1,6 @@
 # Data Model: Life App
 
-> Last updated: 2026-05-15. Reflects current schema including Feature 1 (Calendar Management), Feature 2 (Fitness Tracking → Activities), Feature 3 (Budget Management), v2 Overhaul, Goals V2, Scheduler Rules, Training Periodization, **Training vs Supplemental Session Split (V1, partial)**, **Activities Refactoring V1** (`activities.is_log_entry` → `created_from_log`, `activity_types.default_duration_minutes`, schedule-to-log bridge, derived `linkedLogId` on activity GET), UI Refinements, **Friend Release** (users table, user_id on all data tables, per-user data isolation), **Role Scheduling Rules Removal** (dropped `max_weekly_occurrences` and `min_rest_days` from `roles`, added `[1, 7]` clamp on `goals.sessions_per_week`), and **Habit Tracking Phase 1** (`habits`, `habit_logs` tables with unique index).
+> Last updated: 2026-06-01. Reflects current schema including Feature 1 (Calendar Management), Feature 2 (Fitness Tracking → Activities), Feature 3 (Budget Management), v2 Overhaul, Goals V2, Scheduler Rules, Training Periodization, **Training vs Supplemental Session Split (V1, partial)**, **Activities Refactoring V1** (`activities.is_log_entry` → `created_from_log`, `activity_types.default_duration_minutes`, schedule-to-log bridge, derived `linkedLogId` on activity GET), UI Refinements, **Friend Release** (users table, user_id on all data tables, per-user data isolation), **Role Scheduling Rules Removal** (dropped `max_weekly_occurrences` and `min_rest_days` from `roles`, added `[1, 7]` clamp on `goals.sessions_per_week`), **Habit Tracking Phase 1** (`habits`, `habit_logs` tables with unique index), **Savings Redesign** (`budget_settings.savings_starting_balance`, `Savings` / `Savings Withdrawal` categories), and **Budget Expansion** (`spending_categories.bucket`, `spending_entries.is_itemized`, `budget_settings.bucket_targets` / `moment_threshold` / `target_annual_spending` / `state_pension_annual_amount`, and the new `moment_logs` table).
 
 ## Multi-User Architecture (Friend Release)
 
@@ -31,6 +31,8 @@ erDiagram
     TrainingPlan ||--o{ TrainingPhase : "divided into"
     SchedulerSettings ||--o{ SchedulerBlackoutDate : "manages"
     Habit ||--o{ HabitLog : "logged via"
+    SpendingCategory ||--o{ MomentLog : "categorized as"
+    SpendingEntry ||--o| MomentLog : "optionally linked to"
 
     Habit {
         int id PK
@@ -52,6 +54,22 @@ erDiagram
         int habitId FK
         string date
         datetime createdAt
+    }
+
+    MomentLog {
+        int id PK
+        string userId FK
+        string date
+        real amount
+        string description
+        int categoryId FK
+        int spendingEntryId FK
+        string scorecardAnswer
+        string utilityStatusAnswer
+        string sixMonthAnswer
+        string decision
+        datetime createdAt
+        datetime updatedAt
     }
 
     User {
@@ -550,6 +568,93 @@ A one-off future expense the user knows about in advance (e.g., Christmas gifts,
 
 ---
 
+### BudgetSettings
+
+Single row per user (auto-created on first budget access). Holds savings configuration and the **Budget Expansion** fields (buckets, FIRE target, big-purchase threshold). Pre-existing budget tables `income_entries` and `fixed_costs` are unchanged by Budget Expansion and are not re-documented here.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| currency | TEXT | NOT NULL, default 'EUR' | Display currency |
+| monthlySavingsTarget | REAL | NOT NULL, default 0 | Amount carved out of spending budget each month |
+| savingsGoalTotal | REAL | nullable | Long-term savings goal amount |
+| savingsGoalTargetDate | TEXT | nullable, ISO date | Target date for the savings goal |
+| savingsStartingBalance | REAL | nullable, default 0 | **Savings Redesign**: balance already held before tracking began. Savings = `startingBalance + Σ Savings entries + Σ recurring Savings fixed costs − Σ Savings Withdrawal entries` |
+| bucketTargets | TEXT | nullable, JSON | **Budget Expansion**: JSON `{ fixed, invest, save, guilt_free }`, each a percentage `0–100`. Null = use defaults `{ fixed: 50, invest: 10, save: 10, guilt_free: 30 }` (Ramit Sethi Conscious Spending Plan) |
+| momentThreshold | REAL | nullable, default 200 | **Budget Expansion**: purchase amount at/above which the "Log a big purchase" (Moment) filter is encouraged |
+| targetAnnualSpending | REAL | nullable | **Budget Expansion**: manual override for the 25× FIRE target's annual spending. Null = use trailing-12-month spending |
+| statePensionAnnualAmount | REAL | nullable | **Budget Expansion**: expected annual state pension; subtracted from annual spending in the `adjustedTarget` 25× calculation |
+| userId | TEXT | NOT NULL | Owner |
+| createdAt | TEXT | NOT NULL, ISO 8601 | When created |
+| updatedAt | TEXT | NOT NULL, ISO 8601 | Last modification time |
+
+---
+
+### SpendingCategory
+
+A user-defined spending category. **Budget Expansion** added the `bucket` mapping.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| name | TEXT | NOT NULL | Category name |
+| icon | TEXT | NOT NULL, default '📦' | Icon (Lucide name or legacy emoji) |
+| color | TEXT | NOT NULL, default '#6B7280' | Hex color |
+| bucket | TEXT | nullable | **Budget Expansion**: one of `'fixed'`, `'invest'`, `'save'`, `'guilt_free'`, or null (unassigned). Categories mapped to `invest` feed the investing-ladder rung detection |
+| displayOrder | INTEGER | NOT NULL, default 0 | Sort position |
+| isArchived | INTEGER | NOT NULL, default 0 | 0 = active, 1 = archived |
+| userId | TEXT | NOT NULL | Owner |
+| createdAt | TEXT | NOT NULL, ISO 8601 | When created |
+
+**Seeded categories**: `apply-schema.js` seeds `Savings` and `Savings Withdrawal` (Savings Redesign) and seven hidden investing-ladder categories mapped to the `invest` bucket (`pensioensparen`, `langetermijnsparen`, `etf_investment`, `employer_pension`, `2nd_pillar`, `consumer_credit`, `credit_card_debt`). Seeding is idempotent.
+
+---
+
+### SpendingEntry
+
+A single logged expense. **Budget Expansion** added `is_itemized`.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| amount | REAL | NOT NULL | Amount spent |
+| category | TEXT | NOT NULL | Category name (matched by name to `spending_categories`) |
+| description | TEXT | nullable | Free-form description |
+| date | TEXT | NOT NULL, ISO date | When the spending occurred |
+| isItemized | INTEGER | NOT NULL, default 1 | **Budget Expansion**: 1 = itemized line entry, 0 = a lump-sum "category total" entry |
+| notes | TEXT | nullable | Additional context |
+| userId | TEXT | NOT NULL | Owner |
+| createdAt | TEXT | NOT NULL, ISO 8601 | When logged |
+
+---
+
+### MomentLog
+
+**Budget Expansion**: a record of a deliberate "money moment" — pausing before a large purchase to run it through three Morgan Housel-inspired filters (inner scorecard, utility vs. status, the six-month question). Created by the "Log a big purchase" dialog in the sidebar.
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| userId | TEXT | NOT NULL | Owner |
+| date | TEXT | NOT NULL, ISO date | Date of the purchase decision |
+| amount | REAL | NOT NULL | Purchase amount considered |
+| description | TEXT | NOT NULL | What the purchase is |
+| categoryId | INTEGER | FK -> SpendingCategory.id, nullable | Optional spending category |
+| spendingEntryId | INTEGER | FK -> SpendingEntry.id, nullable | Set when the user chose to also log it as actual spending (only for `proceeded`). **Not** cascade-coupled — deleting the moment log leaves the spending entry intact, and vice-versa |
+| scorecardAnswer | TEXT | nullable | Filter 1 (inner vs. outer scorecard) reflection |
+| utilityStatusAnswer | TEXT | nullable | Filter 2 (utility vs. status) reflection |
+| sixMonthAnswer | TEXT | nullable | Filter 3 (how you'll feel in six months) reflection |
+| decision | TEXT | NOT NULL | One of: `'proceeded'`, `'declined'`, `'parked'` |
+| createdAt | TEXT | NOT NULL, ISO 8601 | When logged |
+| updatedAt | TEXT | NOT NULL, ISO 8601 | Last modification time |
+
+**Key design decisions**:
+- The decision is the user's alone — the dialog is reflective, not prescriptive.
+- `spendingEntryId` decouples the two records intentionally (spec §3.1): a parked/declined moment never creates spending, and a deleted moment never removes real spending history.
+- Buckets, the investing ladder, and the 25× target are **derived at read time** in `GET /api/budget/summary` (see `src/lib/budget-computations.ts`) — none of them are stored.
+
+---
+
 ### TrainingPlan
 
 A periodization plan attached to a goal. Shared across sports (climbing, tennis) via the `sport` discriminator and `sportProfile` JSON blob. One plan per goal.
@@ -690,5 +795,8 @@ One completion record per habit per calendar day. The unique index enforces "at 
 | trainingPhases | ~10-30 | Ordered phases within training plan cycles |
 | habits | ~5-20 | Daily habits with identity framing |
 | habitLogs | ~1000-3000 | One completion entry per habit per day |
+| momentLogs | ~20-100 | Big-purchase "money moment" reflections (Budget Expansion) |
 
-Single user, local SQLite. Total: a few thousand rows per year.
+Budget tables `budgetSettings` (1/user), `incomeEntries`, `fixedCosts`, `spendingEntries`, `spendingCategories`, and `plannedExpenses` are part of Feature 3 (Budget Management); see the Budget Domain entity sections above for the fields touched by Savings Redesign and Budget Expansion.
+
+Per user, local SQLite. Total: a few thousand rows per year.

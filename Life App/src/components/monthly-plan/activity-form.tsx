@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -45,6 +46,8 @@ interface ActivityFormProps {
     notes: string;
     sessionType: SessionType;
   }) => void;
+  /** When provided and editing an existing activity, shows a Delete button. */
+  onDelete?: (activity: Activity) => void;
   roles: Role[];
   goals: Goal[];
   activity?: Activity | null;
@@ -56,6 +59,7 @@ export function ActivityForm({
   open,
   onClose,
   onSave,
+  onDelete,
   roles,
   goals,
   activity,
@@ -393,16 +397,31 @@ export function ActivityForm({
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={goalId !== "none" && goalHasTrainingPlan === null}
-            >
-              {isEditing ? "Save" : "Schedule"}
-            </Button>
+          <DialogFooter className="gap-2 sm:justify-between">
+            {isEditing && onDelete && activity ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onDelete(activity)}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive sm:mr-auto"
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                Delete
+              </Button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={goalId !== "none" && goalHasTrainingPlan === null}
+              >
+                {isEditing ? "Save" : "Schedule"}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
