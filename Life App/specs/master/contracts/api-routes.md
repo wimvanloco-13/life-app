@@ -169,6 +169,86 @@ Log a new measurement.
 
 ---
 
+## Body Profile
+
+Stores optional user attributes (date of birth, biological sex, height, waist circumference) that power the client-side metric interpretation layer. One row per user; all data columns nullable.
+
+> The interpretation logic (BMI, WHtR, VO2max percentile, RHR category) runs entirely client-side in `src/lib/body-metrics-guidance.ts`. There is no interpretation endpoint.
+
+### GET /api/body-profile
+
+Returns the authenticated user's body profile row.
+
+If no row exists for the user yet, returns an all-null default object with `200` (not `404`). This allows the UI to render the "About you" card in an empty state without special-casing the first visit.
+
+**Response** `200`:
+```json
+{
+  "id": 1,
+  "userId": "user_abc",
+  "dateOfBirth": "1990-05-15",
+  "biologicalSex": "male",
+  "heightCm": 175,
+  "waistCm": 85,
+  "waistCmUpdatedAt": "2026-06-02T14:00:00.000Z",
+  "createdAt": "2026-06-01T10:00:00.000Z",
+  "updatedAt": "2026-06-02T14:00:00.000Z"
+}
+```
+
+First-visit default (no row exists):
+```json
+{
+  "id": null,
+  "userId": "user_abc",
+  "dateOfBirth": null,
+  "biologicalSex": null,
+  "heightCm": null,
+  "waistCm": null,
+  "waistCmUpdatedAt": null,
+  "createdAt": "",
+  "updatedAt": ""
+}
+```
+
+**Response** `401`: No valid session.
+
+---
+
+### PATCH /api/body-profile
+
+Upserts the authenticated user's body profile. Accepts any subset of the four data fields; omitted fields are left unchanged (upsert semantics — a second PATCH does not nullify fields set by the first).
+
+When `waistCm` is present in the payload (even if setting it to `null`), `waistCmUpdatedAt` is set to the current server timestamp.
+
+The upsert is atomic (`INSERT … ON CONFLICT DO UPDATE`) — safe against concurrent first-ever PATCH requests.
+
+**Request body** (all fields optional):
+```json
+{
+  "dateOfBirth": "1990-05-15",
+  "biologicalSex": "male",
+  "heightCm": 175,
+  "waistCm": 85
+}
+```
+
+**Validation** (returns `400` with the exact error string on first failure):
+
+| Field | Rule | Error string |
+|-------|------|--------------|
+| `dateOfBirth` | Must match `YYYY-MM-DD` and be parseable | `"Date of birth must be a valid date"` |
+| `dateOfBirth` | Must not be in the future | `"Date of birth cannot be in the future"` |
+| `biologicalSex` | Must be `'male'` or `'female'` | `"Biological sex must be 'male' or 'female'"` |
+| `heightCm` | Positive real number | `"Height must be a positive number"` |
+| `waistCm` | Positive real number | `"Waist must be a positive number"` |
+
+**Response** `200`: Full updated profile row (same shape as GET).
+**Response** `400`: Validation failure with `{ "error": "<message>" }`.
+**Response** `401`: No valid session.
+
+---
+
 ## Activities Summary
 
 ### GET /api/activities/summary
