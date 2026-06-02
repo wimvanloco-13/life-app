@@ -58,6 +58,17 @@ export function LibraryCategorySection({
     onCategoryDeleted?.(category.id);
   }
 
+  // Reflect the bookmark change in this section's own item state so the icon
+  // updates immediately, then let the parent persist it and update topic state.
+  function handleBookmarkToggle(itemId: number, currentlyBookmarked: boolean) {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === itemId ? { ...i, isBookmarked: !currentlyBookmarked } : i
+      )
+    );
+    onBookmarkToggle?.(itemId, currentlyBookmarked);
+  }
+
   function handleItemSaved(item: LibraryItem) {
     if (editItem) {
       setItems((prev) =>
@@ -141,7 +152,7 @@ export function LibraryCategorySection({
                 <SortableItemRow
                   key={item.id}
                   item={item}
-                  onBookmarkToggle={onBookmarkToggle}
+                  onBookmarkToggle={onBookmarkToggle ? handleBookmarkToggle : undefined}
                   onEdit={openEditItem}
                   onDeleted={handleDeleteItem}
                 />
@@ -152,7 +163,11 @@ export function LibraryCategorySection({
       ) : (
         <div className="divide-y divide-border/50">
           {items.map((item) => (
-            <LibraryItemRow key={item.id} item={item} onBookmarkToggle={onBookmarkToggle} />
+            <LibraryItemRow
+              key={item.id}
+              item={item}
+              onBookmarkToggle={onBookmarkToggle ? handleBookmarkToggle : undefined}
+            />
           ))}
         </div>
       )}
