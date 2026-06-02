@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -30,9 +30,10 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import type { BodyMetric, BodyMetricType } from "@/types";
+import type { BodyMetric, BodyMetricType, UserBodyProfile } from "@/types";
 import { usePalette } from "@/hooks/use-palette";
 import type { PaletteColor } from "@/lib/palette";
+import { BodyMetricsFeedback } from "./body-metrics-feedback";
 
 const METRIC_CONFIG: {
   type: BodyMetricType;
@@ -64,8 +65,23 @@ const METRIC_CONFIG: {
   },
 ];
 
+function defaultProfile(userId = ""): UserBodyProfile {
+  return {
+    id: null,
+    userId,
+    dateOfBirth: null,
+    biologicalSex: null,
+    heightCm: null,
+    waistCm: null,
+    waistCmUpdatedAt: null,
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
 export function BodyMetricsView() {
   const [allMetrics, setAllMetrics] = useState<BodyMetric[]>([]);
+  const [profile, setProfile] = useState<UserBodyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const palette = usePalette();
 
@@ -74,11 +90,26 @@ export function BodyMetricsView() {
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [saving, setSaving] = useState(false);
 
+  // Refs for focus-on-prompt behaviour (FR-016, US-3)
+  const dobRef = useRef<HTMLInputElement>(null);
+  const sexRef = useRef<HTMLButtonElement>(null);
+  const heightRef = useRef<HTMLInputElement>(null);
+  const waistRef = useRef<HTMLInputElement>(null);
+
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/body-metrics");
-    const data = await res.json();
-    setAllMetrics(data);
+    const [metricsRes, profileRes] = await Promise.all([
+      fetch("/api/body-metrics"),
+      fetch("/api/body-profile"),
+    ]);
+    const metricsData = await metricsRes.json();
+    setAllMetrics(metricsData);
+    if (profileRes.ok) {
+      const profileData = await profileRes.json() as UserBodyProfile;
+      setProfile(profileData);
+    } else {
+      setProfile(defaultProfile());
+    }
     setLoading(false);
   }, []);
 
@@ -141,6 +172,8 @@ export function BodyMetricsView() {
           ))}
         </div>
         <Skeleton className="h-72 rounded-lg" />
+        <Skeleton className="h-64 rounded-lg" />
+        <Skeleton className="h-48 rounded-lg" />
       </div>
     );
   }
@@ -305,6 +338,184 @@ export function BodyMetricsView() {
           </CardContent>
         </Card>
       </div>
+
+      <AboutYouCard
+        profile={profile}
+        onProfileUpdate={setProfile}
+        dobRef={dobRef}
+        sexRef={sexRef}
+        heightRef={heightRef}
+        waistRef={waistRef}
+      />
+
+      <BodyMetricsFeedback
+        profile={profile}
+        allMetrics={allMetrics}
+        dobRef={dobRef}
+        sexRef={sexRef}
+        heightRef={heightRef}
+      />
     </div>
+  );
+}
+
+// ─── About You card ───────────────────────────────────────────────────────────
+
+interface AboutYouCardProps {
+  profile: UserBodyProfile | null;
+  onProfileUpdate: (p: UserBodyProfile) => void;
+  dobRef: React.RefObject<HTMLInputElement | null>;
+  sexRef: React.RefObject<HTMLButtonElement | null>;
+  heightRef: React.RefObject<HTMLInputElement | null>;
+  waistRef: React.RefObject<HTMLInputElement | null>;
+}
+
+function AboutYouCard({ profile, onProfileUpdate, dobRef, sexRef, heightRef, waistRef }: AboutYouCardProps) {
+  const today = new Date().toLocaleDateString("sv-SE");
+
+  const [dob, setDob] = useState(profile?.dateOfBirth ?? "");
+  const [sex, setSex] = useState<string>(profile?.biologicalSex ?? "");
+  const [height, setHeight] = useState(profile?.heightCm != null ? String(profile.heightCm) : "");
+  const [waist, setWaist] = useState(profile?.waistCm != null ? String(profile.waistCm) : "");
+  const [fieldError, setFieldError] = useState<Record<string, string>>({});
+  const [saveError, setSaveError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync inputs when profile loads (e.g. after fetch)
+  useEffect(() => {
+    setDob(profile?.dateOfBirth ?? "");
+    setSex(profile?.biologicalSex ?? "");
+    setHeight(profile?.heightCm != null ? String(profile.heightCm) : "");
+    setWaist(profile?.waistCm != null ? String(profile.waistCm) : "");
+  }, [profile]);
+
+  async function handleSave() {
+    const errors: Record<string, string> = {};
+
+    if (dob && dob > today) errors.dob = "Date of birth cannot be in the future";
+    if (height && (isNaN(Number(height)) || Number(height) <= 0)) errors.height = "Height must be a positive number";
+    if (waist && (isNaN(Number(waist)) || Number(waist) <= 0)) errors.waist = "Waist must be a positive number";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldError(errors);
+      return;
+    }
+    setFieldError({});
+    setSaveError("");
+    setIsSaving(true);
+
+    try {
+      const payload: Record<string, unknown> = {
+        dateOfBirth: dob || null,
+        biologicalSex: sex || null,
+        heightCm: height ? Number(height) : null,
+        waistCm: waist ? Number(waist) : null,
+      };
+      const res = await fetch("/api/body-profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json() as { error?: string } & UserBodyProfile;
+      if (!res.ok) {
+        const msg = data.error ?? "Something went wrong";
+        if (msg.includes("Date of birth")) setFieldError((e) => ({ ...e, dob: msg }));
+        else if (msg.includes("Biological sex")) setFieldError((e) => ({ ...e, sex: msg }));
+        else if (msg.includes("Height")) setFieldError((e) => ({ ...e, height: msg }));
+        else if (msg.includes("Waist")) setFieldError((e) => ({ ...e, waist: msg }));
+        else setSaveError(msg);
+      } else {
+        onProfileUpdate(data);
+      }
+    } catch {
+      setSaveError("Could not save. Please check your connection and try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  const waistUpdatedAt = profile?.waistCmUpdatedAt
+    ? format(new Date(profile.waistCmUpdatedAt), "d MMM yyyy")
+    : null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">About you</CardTitle>
+        <CardDescription>
+          These details are optional and are only used to interpret your metrics on this screen.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="bm-dob">Date of birth</Label>
+            <Input
+              id="bm-dob"
+              ref={dobRef}
+              type="date"
+              max={today}
+              value={dob}
+              onChange={(e) => setDob(e.target.value)}
+            />
+            {fieldError.dob && <p className="text-xs text-destructive">{fieldError.dob}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="bm-sex">Biological sex</Label>
+            <Select value={sex} onValueChange={setSex}>
+              <SelectTrigger id="bm-sex" ref={sexRef}>
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
+            {fieldError.sex && <p className="text-xs text-destructive">{fieldError.sex}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="bm-height">Height <span className="text-muted-foreground font-normal">cm</span></Label>
+            <Input
+              id="bm-height"
+              ref={heightRef}
+              type="number"
+              step="0.1"
+              placeholder="e.g. 175"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+            />
+            {fieldError.height && <p className="text-xs text-destructive">{fieldError.height}</p>}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="bm-waist">
+              Waist <span className="text-muted-foreground font-normal">cm</span>{" "}
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </Label>
+            <Input
+              id="bm-waist"
+              ref={waistRef}
+              type="number"
+              step="0.1"
+              placeholder="e.g. 85"
+              value={waist}
+              onChange={(e) => setWaist(e.target.value)}
+            />
+            {waistUpdatedAt && !fieldError.waist && (
+              <p className="text-xs text-muted-foreground">Last updated {waistUpdatedAt}</p>
+            )}
+            {fieldError.waist && <p className="text-xs text-destructive">{fieldError.waist}</p>}
+          </div>
+        </div>
+
+        {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+
+        <Button onClick={handleSave} disabled={isSaving} size="sm">
+          {isSaving ? "Saving..." : "Save"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
