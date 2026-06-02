@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-05-23. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), and **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`). Onboarding Wizard removed.
+> Last updated: 2026-06-02. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`), and **Body Metrics Guidance** (`GET /api/body-profile`, `PATCH /api/body-profile`). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -219,7 +219,7 @@ First-visit default (no row exists):
 
 Upserts the authenticated user's body profile. Accepts any subset of the four data fields; omitted fields are left unchanged (upsert semantics — a second PATCH does not nullify fields set by the first).
 
-When `waistCm` is present in the payload (even if setting it to `null`), `waistCmUpdatedAt` is set to the current server timestamp.
+When `waistCm` is present in the payload and non-null, `waistCmUpdatedAt` is set to the current server timestamp. When `waistCm` is explicitly set to `null`, `waistCmUpdatedAt` is also cleared to `null`.
 
 The upsert is atomic (`INSERT … ON CONFLICT DO UPDATE`) — safe against concurrent first-ever PATCH requests.
 
