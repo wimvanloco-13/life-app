@@ -63,6 +63,20 @@ erDiagram
         datetime createdAt
     }
 
+    UserBodyProfile {
+        int id PK
+        string userId FK
+        string dateOfBirth
+        string biologicalSex
+        real heightCm
+        real waistCm
+        string waistCmUpdatedAt
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    User ||--o| UserBodyProfile : "has profile"
+
     Role {
         int id PK
         string userId FK
@@ -533,6 +547,30 @@ A manually entered measurement for tracking body stats over time.
 
 ---
 
+### UserBodyProfile
+
+Optional demographic and anthropometric attributes stored per user to enable personalised metric interpretation. All data columns are nullable — the feature degrades gracefully when inputs are absent. One row per user (enforced by `UNIQUE` on `user_id`).
+
+| Field | Type | Constraints | Description |
+|-------|------|-------------|-------------|
+| id | INTEGER | PK, auto-increment | Unique identifier |
+| userId | TEXT | NOT NULL, UNIQUE, FK -> users.id | Owner — one row per user |
+| dateOfBirth | TEXT | nullable, ISO YYYY-MM-DD | Used to derive age for VO2max and RHR bracket lookup |
+| biologicalSex | TEXT | nullable, `'male'` or `'female'` | Used for VO2max and RHR sex-specific norms |
+| heightCm | REAL | nullable | Used for BMI and WHtR calculation |
+| waistCm | REAL | nullable | Used for WHtR and ESC/IDF absolute waist verdict |
+| waistCmUpdatedAt | TEXT | nullable, ISO 8601 | Set whenever `waistCm` is written; displayed as "Last updated [date]" in the UI |
+| createdAt | TEXT | NOT NULL | `datetime('now')` UTC |
+| updatedAt | TEXT | NOT NULL | Updated on every PATCH |
+
+**Key design decisions:**
+- All data columns nullable — no required fields. Each feedback card degrades to a prompt-state card when its required inputs are absent.
+- Interpretation logic is entirely client-side (`src/lib/body-metrics-guidance.ts`). The server stores and returns the raw values; the client computes BMI, WHtR, percentile, and category.
+- `waistCm` is stored here (not in `body_metrics`) because it is a static profile attribute, not a time-series measurement.
+- `dateOfBirth` is stored rather than age so that the derived age is always current without requiring the user to re-enter it.
+
+---
+
 ### PlannedExpense
 
 A one-off future expense the user knows about in advance (e.g., Christmas gifts, vacation, equipment). Appears in the yearly budget overview alongside fixed costs and actual spending.
@@ -749,6 +787,7 @@ One completion record per habit per calendar day. The unique index enforces "at 
 | activityTypes | ~5-15 | Activity type definitions with custom metrics |
 | activityLogs | ~500-1000 | Logged activity sessions |
 | bodyMetrics | ~100-200 | Weight, VO2max, resting HR measurements |
+| userBodyProfiles | 1 per user | Optional demographics for metric interpretation (DOB, sex, height, waist) |
 | plannedExpenses | ~10-30 | One-off future budget expenses |
 | momentLogs | ~20-100 | Big-purchase decision records with Housel filter answers |
 | goalTallies | ~50-200 | Simple count-based progress entries for non-athletic goals (Goals V2) |
