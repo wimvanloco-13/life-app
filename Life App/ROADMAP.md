@@ -1,6 +1,6 @@
 ﻿# Life App -- Feature Roadmap
 
-> Last updated: 2026-05-23.
+> Last updated: 2026-06-02.
 
 ## Product Vision
 
@@ -118,7 +118,7 @@ Each feature below becomes a separate spec-kit specification. Features are order
 ### Lucide Icon System Refactor
 
 **Spec ID**: `lucide-icon-refactor`
-**Status**: Planned
+**Status**: Built (complete)
 
 **What it does**: Replaces the emoji icon system used in spending categories and activity types with named Lucide icons. Currently, both `spending_categories.icon` and `activity_types.icon` store arbitrary emoji strings rendered via a custom `EmojiIcon` component. This conflicts with the design system's core rule — Lucide for all UI icons — and produces inconsistent rendering across platforms and sizes.
 
@@ -145,7 +145,7 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 ### Savings Redesign
 
 **Spec ID**: `savings-redesign`
-**Status**: Planned
+**Status**: Built (complete)
 
 **What it does**: Replaces the broken "leftover money = savings" calculation with an explicit model. Savings are only what you deliberately log. A "Savings" spending category tracks contributions. A "Savings Withdrawal" category tracks dips. A starting balance captures what you already had before tracking began. The savings goal progress on the Dashboard reflects reality.
 
@@ -749,6 +749,47 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 **Routes modified**: `GET /api/budget/summary` (added `buckets`, `investingLadder`, `target25x`), `GET/PATCH /api/budget-settings` (new fields), `PATCH /api/spending-categories/:id` (bucket assignment)
 
 **Dependencies**: Feature 3 (Budget Management — built). Library feature (built).
+
+---
+
+### Body Metrics Guidance
+
+**Spec ID**: `body-metrics-guidance`
+**Status**: Built (complete — PRs #52, #53, #54)
+**Completed**: 2026-06-02
+
+**What it does**: Adds an interpretation layer to the existing Body Metrics tab. The tab already lets users log Weight, VO2max, and Resting HR — but gave no feedback on whether a value was good or concerning. This feature adds an "About you" card for optional demographic inputs (date of birth, biological sex, height, waist circumference) and a feedback section below it that interprets each metric against authoritative reference standards.
+
+**What has been built**:
+
+*Phase 1 — Foundation (PR #52)*
+- `user_body_profiles` table migration (`apply-schema.js`, Drizzle schema, TypeScript types) — one row per user, all data columns nullable
+- Pure client-side interpretation library (`src/lib/body-metrics-guidance.ts`) — three exported functions with no I/O or Next.js dependencies:
+  - `interpretWeight`: 7-day rolling average BMI (WHO categories), healthy weight range, WHtR (waist-to-height ratio), two-tier ESC/IDF European waist verdict (elevated ≥94/80 cm, high risk ≥102/88 cm for men/women)
+  - `interpretVo2max`: ACSM/Cooper Institute percentile interpolation against age+sex bracket tables (20–79), six fitness categories (Poor → Superior), age-clamping note
+  - `interpretRestingHr`: age+sex bracket lookup from published norms, seven categories (Athlete → Poor), athlete note, high-HR note (value > 85 bpm)
+- 31 unit tests written against the reference tables before implementation (TDD)
+
+*Phase 2 — API + UI (PR #53)*
+- `GET /api/body-profile`: returns stored profile or all-null default on first visit; auth-gated
+- `PATCH /api/body-profile`: atomic upsert (`onConflictDoUpdate`), per-field validation with spec-exact error strings, `waist_cm_updated_at` stamped on waist save
+- "About you" card (`body-metrics-view.tsx`): four optional inputs (DOB, biological sex, height cm, waist cm), pre-filled from stored profile, client-side validation, inline field errors, "Last updated" note on waist, Save button
+- `body-metrics-feedback.tsx` (new file): three metric cards with interpreted and prompt states:
+  - Weight card: BMI + WHO category, healthy range, averaging note, WHtR, absolute waist verdict
+  - VO2max card: percentile + ACSM category + plain-language verdict, age-bracket note when clamped
+  - Resting HR card: category + verdict, non-alarming athlete copy, healthcare note when value > 85 bpm
+- Progressive disclosure: each card shows a focusable prompt sentence (links to relevant "About you" input) when required attributes are missing
+- Medical disclaimer always visible, never hidden or collapsible
+
+*Phase 3 — Master docs (PR #54)*
+- `specs/master/data-model.md`: `UserBodyProfile` added to ERD, entity detail table, Tables Summary row
+- `specs/master/contracts/api-routes.md`: Body Profile section with GET/PATCH documentation and validation table
+
+**Tables added**: `user_body_profiles`
+
+**Routes added**: `GET /api/body-profile`, `PATCH /api/body-profile`
+
+**Dependencies**: Feature 2 (body metrics logging — built).
 
 ---
 
