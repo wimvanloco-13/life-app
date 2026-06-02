@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-05-23. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), and **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`). Onboarding Wizard removed.
+> Last updated: 2026-06-02. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`), and **Body Metrics Guidance** (`GET /api/body-profile`, `PATCH /api/body-profile`). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -166,6 +166,86 @@ Log a new measurement.
 ```
 
 **Response** `201`: The created body metric entry.
+
+---
+
+## Body Profile
+
+Stores optional user attributes (date of birth, biological sex, height, waist circumference) that power the client-side metric interpretation layer. One row per user; all data columns nullable.
+
+> The interpretation logic (BMI, WHtR, VO2max percentile, RHR category) runs entirely client-side in `src/lib/body-metrics-guidance.ts`. There is no interpretation endpoint.
+
+### GET /api/body-profile
+
+Returns the authenticated user's body profile row.
+
+If no row exists for the user yet, returns an all-null default object with `200` (not `404`). This allows the UI to render the "About you" card in an empty state without special-casing the first visit.
+
+**Response** `200`:
+```json
+{
+  "id": 1,
+  "userId": "user_abc",
+  "dateOfBirth": "1990-05-15",
+  "biologicalSex": "male",
+  "heightCm": 175,
+  "waistCm": 85,
+  "waistCmUpdatedAt": "2026-06-02T14:00:00.000Z",
+  "createdAt": "2026-06-01T10:00:00.000Z",
+  "updatedAt": "2026-06-02T14:00:00.000Z"
+}
+```
+
+First-visit default (no row exists):
+```json
+{
+  "id": null,
+  "userId": "user_abc",
+  "dateOfBirth": null,
+  "biologicalSex": null,
+  "heightCm": null,
+  "waistCm": null,
+  "waistCmUpdatedAt": null,
+  "createdAt": "",
+  "updatedAt": ""
+}
+```
+
+**Response** `401`: No valid session.
+
+---
+
+### PATCH /api/body-profile
+
+Upserts the authenticated user's body profile. Accepts any subset of the four data fields; omitted fields are left unchanged (upsert semantics — a second PATCH does not nullify fields set by the first).
+
+When `waistCm` is present in the payload and non-null, `waistCmUpdatedAt` is set to the current server timestamp. When `waistCm` is explicitly set to `null`, `waistCmUpdatedAt` is also cleared to `null`.
+
+The upsert is atomic (`INSERT … ON CONFLICT DO UPDATE`) — safe against concurrent first-ever PATCH requests.
+
+**Request body** (all fields optional):
+```json
+{
+  "dateOfBirth": "1990-05-15",
+  "biologicalSex": "male",
+  "heightCm": 175,
+  "waistCm": 85
+}
+```
+
+**Validation** (returns `400` with the exact error string on first failure):
+
+| Field | Rule | Error string |
+|-------|------|--------------|
+| `dateOfBirth` | Must match `YYYY-MM-DD` and be parseable | `"Date of birth must be a valid date"` |
+| `dateOfBirth` | Must not be in the future | `"Date of birth cannot be in the future"` |
+| `biologicalSex` | Must be `'male'` or `'female'` | `"Biological sex must be 'male' or 'female'"` |
+| `heightCm` | Positive real number | `"Height must be a positive number"` |
+| `waistCm` | Positive real number | `"Waist must be a positive number"` |
+
+**Response** `200`: Full updated profile row (same shape as GET).
+**Response** `400`: Validation failure with `{ "error": "<message>" }`.
+**Response** `401`: No valid session.
 
 ---
 
