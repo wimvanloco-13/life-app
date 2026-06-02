@@ -1,13 +1,13 @@
 # Tennis Agent -- Onboarding Document
 
 > **Purpose**: Get a new AI agent up to speed on the Tennis feature within the Life App project.
-> **Last updated**: 2026-03-14
+> **Last updated**: 2026-06-01
 
 ---
 
 ## Who You Are
 
-You are the **Tennis Agent**. You own everything tennis-related in this project: the periodization engine, the training plan content, the tennis-specific UI, and the source material that drives all of it. You are one of several sport-specific agents (others include climbing and eventually running).
+You are the **Tennis Agent**. You own everything tennis-related in this project: the periodization engine, the training plan content, the tennis-specific UI, and the source material that drives all of it. You are one of several sport-specific agents. Climbing and running are both built and share the same periodization architecture.
 
 You are not a generic fitness bot. You have read and internalized three books:
 1. **Tennis Anatomy** (Roetert & Kovacs, USTA) -- the physical foundation
@@ -29,7 +29,7 @@ Before doing anything, read these documents in order:
 
 ### Tennis-specific context
 4. **Tennis Feature V1 Spec** -- `Tennis/Tennis Feature V1 - Training Plans.md` (the built feature: periodization, schema, API, UI)
-5. **Tennis Schedule Refactoring Spec** -- `Tennis/Tennis Training Schedule Refactoring.md` (the next piece of work: three-layered phase descriptions)
+5. **Tennis Schedule Refactoring Spec** -- `Tennis/Tennis Training Schedule Refactoring.md` (built: three-layered phase descriptions, on-court + supplemental + mental game)
 6. **Tennis Anatomy Guide** -- `Tennis/Tennis Anatomy - Complete Guide.md` (physical training foundation)
 7. **The Inner Game of Tennis** -- `Tennis/the-inner-game-of-tennis.txt` (mental game, Self 1/Self 2, concentration techniques)
 8. **Winning Ugly** -- `Tennis/Winning Ugly PDF.txt` (tactics, pre-match prep, match strategy)
@@ -38,7 +38,7 @@ Before doing anything, read these documents in order:
 9. **Schema** -- `Life App/src/db/schema.ts` (look at `training_plans` and `training_phases` tables)
 10. **Types** -- `Life App/src/types/index.ts` (look at `TennisSportProfile`, `TennisPlayerLevel`, `TennisPlayingStyle`, `PhysicalLimitation`, `TennisPhaseType`)
 11. **Tennis Periodization Engine** -- `Life App/src/lib/training/tennis-periodization.ts` (the core logic you own)
-12. **Tennis Tests** -- `Life App/src/lib/__tests__/tennis-periodization.test.ts` (29+ tests)
+12. **Tennis Tests** -- `Life App/src/lib/__tests__/tennis-periodization.test.ts` (37 tests)
 13. **Tennis UI Dialog** -- `Life App/src/components/goals/tennis-training-plan-dialog.tsx`
 14. **Training Plan Section** -- `Life App/src/components/goals/training-plan-section.tsx` (shared with climbing, has tennis-specific additions)
 
@@ -87,21 +87,25 @@ The feature adds periodization plans to tennis conditioning goals. The user ente
 - **3-3-2-1** (Club): Foundation & Prehab → Strength & Power → Tennis-Specific Endurance → Recovery (with playing style modifiers)
 - **3-2-1** (Advanced): Strength & Power → Performance → Recovery (with playing style modifiers)
 
-**Playing style modifiers** adjust phase durations (not content -- that's the refactoring):
+**Playing style modifiers** adjust phase durations. On-court content is differentiated by playing style separately, in the refactoring layer:
 - Baseliner: more endurance/performance weeks
 - Serve & Volley: more strength/power weeks, shorter endurance
 - All-Court: balanced default
 
-### Tennis Training Schedule Refactoring (Specified, Not Built)
+### Tennis Training Schedule Refactoring (Built)
 
-The current phase descriptions are pure conditioning/gym content. They don't tell the user what to work on during tennis practice, don't include mental game techniques, and don't differentiate by playing style.
+The original phase descriptions were pure conditioning/gym content. They didn't tell the user what to work on during tennis practice, didn't include mental game techniques, and didn't differentiate by playing style. The refactoring fixed this and is now live.
 
-The refactoring replaces flat description strings with three-layered content:
-1. **On-Court Focus** -- playing-style-specific practice guidance
-2. **Supplemental Training** -- the conditioning work (what currently exists, refined)
+Flat description strings were replaced with three-layered content, assembled by `buildPhaseDescription()` into an `ON-COURT FOCUS / SUPPLEMENTAL TRAINING / MENTAL GAME` block:
+1. **On-Court Focus** -- playing-style-specific practice guidance (baseliner / serve-volley / all-court), with beginner overrides
+2. **Supplemental Training** -- the conditioning work, with a beginner override
 3. **Mental Game** -- one Inner Game technique + one Winning Ugly concept per phase
 
-Zero schema, API, or UI changes. All changes are in `tennis-periodization.ts` (content) and `tennis-periodization.test.ts` (tests).
+The mental game follows a fixed progression across the five phases:
+- **Inner Game**: nonjudgmental awareness → seam-watching → bounce-hit → breathing between points → effortless effort
+- **Winning Ugly**: Know Thyself → Combination to the Lock → Who's Doing What → Pre-Match Checklist → Tournament Tough
+
+Zero schema, API, or UI changes. All content lives in the `PHASE_CONTENT` object in `tennis-periodization.ts`; tests are in `tennis-periodization.test.ts` (37 tests as of 2026-05-31).
 
 See `Tennis/Tennis Training Schedule Refactoring.md` for the full spec with detailed content for every phase × every playing style.
 
@@ -193,7 +197,7 @@ these files to get up to speed:
 2. Personal Buddy Onboarding.md (user context)
 3. Life App/AGENT-ONBOARDING.md (project rules and tech stack)
 4. Tennis/Tennis Feature V1 - Training Plans.md (built feature spec)
-5. Tennis/Tennis Training Schedule Refactoring.md (next work item)
+5. Tennis/Tennis Training Schedule Refactoring.md (built content refactoring)
 6. Tennis/Tennis Anatomy - Complete Guide.md (physical training source)
 7. Tennis/the-inner-game-of-tennis.txt (mental game source)
 8. Tennis/Winning Ugly PDF.txt (tactics source)
@@ -204,13 +208,25 @@ the tennis UI components. Let me know when you're ready.
 
 ---
 
+### Tennis Goal Tracking & Racket Icon (Built — PR #48, 2026-06-01)
+
+Two small UX fixes shipped after real use of a "Win 20 games" tennis goal:
+
+1. **Log Progress always visible.** Removed the `!trainingPlan` gate on the "Log Progress" button in `src/components/goals/yearly-goal-card.tsx`. Outcome goals that have no training plan attached (e.g. "Win 20 games") can now be tallied without workarounds.
+
+2. **Tennis racket icon.** Custom SVG component at `src/components/ui/icons/tennis-racket.tsx` (built to Lucide conventions: 24×24 viewBox, `forwardRef`, `stroke="currentColor"`, stroke-2, round caps, `aria-hidden`). Registered in `src/lib/icons.ts` under key `"tennis-racket"`. Active on all tennis surfaces: activity-type default (`src/lib/defaults.ts`), sidebar, Library topic page, Library bookmarks page, seed data. Two idempotent migrations in `apply-schema.js` update existing rows in `activity_types` and `library_topics`.
+
+**Incidental fix**: `Wallet` key added to the Library bookmarks ICON_MAP (Budget topic was falling back to a generic bookmark icon on that page).
+
+---
+
 ## File Index
 
 | File | Purpose |
 |------|---------|
 | `Tennis/AGENT-ONBOARDING.md` | This document |
 | `Tennis/Tennis Feature V1 - Training Plans.md` | Feature spec (built) |
-| `Tennis/Tennis Training Schedule Refactoring.md` | Content refactoring spec (awaiting approval) |
+| `Tennis/Tennis Training Schedule Refactoring.md` | Content refactoring spec (built) |
 | `Tennis/Tennis Anatomy - Complete Guide.md` | Physical training reference (from the book) |
 | `Tennis/the-inner-game-of-tennis.txt` | Mental game reference (from the book) |
 | `Tennis/Winning Ugly PDF.txt` | Tactics reference (from the book) |
@@ -219,6 +235,7 @@ the tennis UI components. Let me know when you're ready.
 | `Life App/src/components/goals/tennis-training-plan-dialog.tsx` | Plan creation dialog (you own this) |
 | `Life App/src/components/goals/training-plan-section.tsx` | Shared phase display (tennis additions are yours) |
 | `Life App/src/components/goals/goals-page.tsx` | Sport detection and dialog routing |
+| `Life App/src/components/ui/icons/tennis-racket.tsx` | Custom tennis racket SVG icon |
 | `Life App/src/app/api/training-plans/route.ts` | API: create/get plans (tennis branch) |
 | `Life App/src/app/api/training-plans/assess-level/route.ts` | API: level assessment (tennis branch) |
 | `Life App/src/app/api/training-plans/[id]/restart/route.ts` | API: restart plan (tennis branch) |

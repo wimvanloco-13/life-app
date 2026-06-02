@@ -752,6 +752,28 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 
 ---
 
+### Tennis Goal Tracking & Racket Icon
+
+**Spec ID**: `tennis-goal-tracking`
+**Status**: Built (complete — PR #48)
+**Completed**: 2026-06-01
+
+**What it does**: Two small changes from real use of a tennis goal.
+
+1. **Log Progress always visible on yearly goal cards.** Removed the `!trainingPlan` gate on the "Log Progress" button in `yearly-goal-card.tsx`. The button now shows regardless of whether a training plan is attached, matching the monthly card's existing behaviour. Enables a plan-free outcome goal (e.g. "Win 20 games") to be tracked by manual tally without conditioning sessions inflating the count.
+
+2. **Tennis racket icon.** Added a custom `TennisRacket` SVG component (`src/components/ui/icons/tennis-racket.tsx`) built to Lucide conventions (24×24, `forwardRef`, `stroke="currentColor"`, stroke-2, round caps, `aria-hidden`). Wired across all tennis surfaces: activity type default, icon registry, Library sidebar, Library topic page, Library bookmarks page, and the seed. Two idempotent data migrations in `apply-schema.js`.
+
+Incidental fix: `Wallet` key added to the Library bookmarks ICON_MAP so the Budget topic stops falling back to the generic bookmark icon on that surface.
+
+**Schema changes**: None. Two cosmetic `UPDATE` migrations only (`activity_types.icon` and `library_topics.icon`).
+
+**Files changed**: `apply-schema.js`, `scripts/seed-library-lib.cjs`, `src/components/goals/yearly-goal-card.tsx`, `src/components/layout/app-sidebar.tsx`, `src/components/library/library-bookmarks-page.tsx`, `src/components/library/library-topic-page.tsx`, `src/components/ui/icons/tennis-racket.tsx` (new), `src/lib/defaults.ts`, `src/lib/icons.ts`
+
+**Dependencies**: None.
+
+---
+
 ## Roadmap Principles
 
 1. **One feature at a time**: We spec, plan, build, and validate one feature before starting the next. No parallel feature development.
