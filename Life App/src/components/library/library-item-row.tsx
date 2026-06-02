@@ -3,6 +3,7 @@
 import { Bookmark } from "lucide-react";
 import type { LibraryItemWithBookmark } from "@/types";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface LibraryItemRowProps {
   item: LibraryItemWithBookmark;
@@ -51,7 +52,12 @@ export function LibraryItemRow({ item, onBookmarkToggle, adminSlot }: LibraryIte
             <button
               type="button"
               onClick={() => onBookmarkToggle(item.id, item.isBookmarked)}
-              className="rounded-md p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+              className={cn(
+                "rounded-md p-1.5 transition-colors",
+                item.isBookmarked
+                  ? "text-foreground"
+                  : "text-muted-foreground/50 hover:text-foreground"
+              )}
               aria-label={item.isBookmarked ? "Remove bookmark" : "Bookmark this item"}
             >
               <Bookmark

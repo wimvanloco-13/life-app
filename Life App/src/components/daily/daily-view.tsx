@@ -288,6 +288,10 @@ export function DailyView() {
     id: number;
     title: string;
   } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
 
   const dateStr = toISODate(currentDate);
   const todayFlag = isToday(currentDate);
@@ -396,6 +400,40 @@ export function DailyView() {
 
   function handleDismiss(activityId: number) {
     setCarryForward((prev) => prev.filter((a) => a.id !== activityId));
+  }
+
+  async function performDelete(id: number, bridgedLogAction?: BridgedLogAction) {
+    const query =
+      bridgedLogAction != null ? `?bridgedLogAction=${bridgedLogAction}` : "";
+    const res = await fetch(`/api/activities/${id}${query}`, {
+      method: "DELETE",
+    });
+
+    // If the activity has a linked log and no action was specified, the server
+    // responds 409; surface the linked-log dialog so the user can choose.
+    if (res.status === 409 && bridgedLogAction == null) {
+      const activity =
+        activities.find((a) => a.id === id) ??
+        carryForward.find((a) => a.id === id);
+      setPendingDelete({ id, title: activity?.title ?? "this activity" });
+      return;
+    }
+
+    if (res.ok) {
+      setActivities((prev) => prev.filter((a) => a.id !== id));
+      setCarryForward((prev) => prev.filter((a) => a.id !== id));
+      setFormOpen(false);
+      setEditingActivity(null);
+      await fetchData();
+    }
+  }
+
+  function handleDeleteActivity(activity: Activity) {
+    if (activity.linkedLogId != null) {
+      setPendingDelete({ id: activity.id, title: activity.title });
+      return;
+    }
+    void performDelete(activity.id);
   }
 
   async function handleSaveActivity(data: {
@@ -798,6 +836,7 @@ export function DailyView() {
           setEditingActivity(null);
         }}
         onSave={handleSaveActivity}
+        onDelete={handleDeleteActivity}
         roles={roles}
         goals={goals}
         activity={editingActivity}
@@ -829,6 +868,19 @@ export function DailyView() {
         }}
         mode="uncheck"
         activityTitle={pendingUncheck?.title}
+      />
+
+      <LinkedLogActionDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={(action) => {
+          if (pendingDelete) {
+            void performDelete(pendingDelete.id, action);
+          }
+          setPendingDelete(null);
+        }}
+        mode="delete"
+        activityTitle={pendingDelete?.title}
       />
     </div>
   );

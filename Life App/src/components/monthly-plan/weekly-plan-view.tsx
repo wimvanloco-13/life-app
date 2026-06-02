@@ -86,6 +86,13 @@ export function WeeklyPlanView() {
     title: string;
   } | null>(null);
 
+  // Delete prompt state. Populated when deleting an activity that has a linked
+  // log; the dialog asks whether to delete or unlink the log first.
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: number;
+    title: string;
+  } | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -237,6 +244,37 @@ export function WeeklyPlanView() {
     setEditingActivity(null);
     await fetchAll();
     fetchMonthActivities();
+  }
+
+  async function performDelete(id: number, bridgedLogAction?: BridgedLogAction) {
+    const qs = bridgedLogAction ? `?bridgedLogAction=${bridgedLogAction}` : "";
+    const res = await fetch(`/api/activities/${id}${qs}`, { method: "DELETE" });
+
+    // Defensive: the activity gained a linked log between GET and delete.
+    if (res.status === 409) {
+      const body = (await res.json().catch(() => null)) as { linkedLogId?: number } | null;
+      if (body?.linkedLogId != null) {
+        const activity =
+          monthActivities.find((a) => a.id === id) ?? activities.find((a) => a.id === id);
+        setPendingDelete({ id, title: activity?.title ?? "this activity" });
+        return;
+      }
+    }
+
+    setActivities((prev) => prev.filter((a) => a.id !== id));
+    setMonthActivities((prev) => prev.filter((a) => a.id !== id));
+    await fetchAll();
+    fetchMonthActivities();
+  }
+
+  function handleDeleteActivity(activity: Activity) {
+    setActivityFormOpen(false);
+    setEditingActivity(null);
+    if (activity.linkedLogId != null) {
+      setPendingDelete({ id: activity.id, title: activity.title });
+      return;
+    }
+    void performDelete(activity.id);
   }
 
   async function persistToggle(
@@ -646,6 +684,7 @@ export function WeeklyPlanView() {
           setEditingActivity(null);
         }}
         onSave={handleSaveActivity}
+        onDelete={handleDeleteActivity}
         roles={roles}
         goals={focusGoals}
         activity={editingActivity}
@@ -682,6 +721,19 @@ export function WeeklyPlanView() {
         }}
         mode="uncheck"
         activityTitle={pendingUncheck?.title}
+      />
+
+      <LinkedLogActionDialog
+        open={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={(action) => {
+          if (pendingDelete) {
+            void performDelete(pendingDelete.id, action);
+          }
+          setPendingDelete(null);
+        }}
+        mode="delete"
+        activityTitle={pendingDelete?.title}
       />
     </div>
   );
