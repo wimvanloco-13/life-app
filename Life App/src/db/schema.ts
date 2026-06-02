@@ -242,6 +242,24 @@ export const bodyMetrics = sqliteTable("body_metrics", {
   createdAt: timestamp(),
 });
 
+// ─── User Body Profiles ───────────────────────────────────
+
+export const userBodyProfiles = sqliteTable("user_body_profiles", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").notNull().unique(),
+  dateOfBirth: text("date_of_birth"),
+  biologicalSex: text("biological_sex"),
+  heightCm: real("height_cm"),
+  waistCm: real("waist_cm"),
+  waistCmUpdatedAt: text("waist_cm_updated_at"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});
+
 // ─── Budget Settings ─────────────────────────────────────
 
 export const budgetSettings = sqliteTable("budget_settings", {

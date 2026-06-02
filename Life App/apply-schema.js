@@ -211,6 +211,18 @@ const createStatements = [
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
 
+  `CREATE TABLE IF NOT EXISTS user_body_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    user_id TEXT NOT NULL UNIQUE,
+    date_of_birth TEXT,
+    biological_sex TEXT,
+    height_cm REAL,
+    waist_cm REAL,
+    waist_cm_updated_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+
   `CREATE TABLE IF NOT EXISTS budget_settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     currency TEXT NOT NULL DEFAULT 'EUR',
