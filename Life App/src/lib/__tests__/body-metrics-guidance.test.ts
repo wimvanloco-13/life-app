@@ -323,4 +323,20 @@ describe("interpretRestingHr", () => {
     const result = interpretRestingHr(55, 15, "female");
     expect(result.category).toBe("Athlete");
   });
+
+  it("82 bpm, age 70, male → Poor for 65+ bracket, but highHrNote false (value ≤ 85)", () => {
+    // 65+ male: Poor = 80+. 82 bpm qualifies as Poor for this bracket.
+    // FR-009: highHrNote fires on value > 85, NOT on category === 'Poor'.
+    // 82 ≤ 85 → highHrNote must be false despite the Poor category.
+    const result = interpretRestingHr(82, 70, "male");
+    expect(result.category).toBe("Poor");
+    expect(result.highHrNote).toBe(false);
+  });
+
+  it("86 bpm, age 70, male → Poor for 65+ bracket, highHrNote true (value > 85)", () => {
+    // 65+ male: Poor = 80+. 86 > 85 → highHrNote: true.
+    const result = interpretRestingHr(86, 70, "male");
+    expect(result.category).toBe("Poor");
+    expect(result.highHrNote).toBe(true);
+  });
 });

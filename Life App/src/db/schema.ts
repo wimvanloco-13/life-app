@@ -252,12 +252,8 @@ export const userBodyProfiles = sqliteTable("user_body_profiles", {
   heightCm: real("height_cm"),
   waistCm: real("waist_cm"),
   waistCmUpdatedAt: text("waist_cm_updated_at"),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(datetime('now'))`),
-  updatedAt: text("updated_at")
-    .notNull()
-    .default(sql`(datetime('now'))`),
+  createdAt: timestamp(),
+  updatedAt: updatedAt(),
 });
 
 // ─── Budget Settings ─────────────────────────────────────

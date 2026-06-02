@@ -410,12 +410,15 @@ export function interpretRestingHr(
   const category = band.label;
 
   const athleteNote = category === "Athlete";
-  const highHrNote = category === "Poor";
+  // FR-009: highHrNote fires on the raw value threshold (> 85 bpm), not the
+  // age-bracket category. A 70-year-old man whose bracket labels 80 bpm as
+  // "Poor" should not receive the same clinical note as a 75+ bpm reading.
+  const highHrNote = value > 85;
 
   return {
     category,
     athleteNote,
     highHrNote,
-    ...(wasClamped ? { ageBracket: bracket.label } : { ageBracket: bracket.label }),
+    ageBracket: bracket.label,
   };
 }

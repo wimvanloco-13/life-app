@@ -99,7 +99,7 @@ no trend chart. It feeds the waist-to-height ratio calculation only.
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/body-profile` | Returns the current user's profile row (or an empty/default shape if none). |
-| `PATCH /api/body-profile` | Upserts any subset of `{dateOfBirth, biologicalSex, heightCm, bmiStandard}`. All fields optional. |
+| `PATCH /api/body-profile` | Upserts any subset of `{dateOfBirth, biologicalSex, heightCm, waistCm}`. All fields optional. |
 
 No changes to the `body_metrics` routes. The API currently accepts any `metricType`
 string with no validation allowlist; `waist` is not added to either the API or the
@@ -128,8 +128,7 @@ Pure functions keep the medical tables in one auditable place and make edge case
 - Heading and one calm line of context: these details are optional and only used
   to interpret your metrics on this screen.
 - Inputs: Date of birth (date), Biological sex (select: male / female), Height
-  (number, cm), optional Waist (number, cm, logged as a metric), optional BMI
-  standard toggle (WHO / Asian).
+  (number, cm), optional Waist (number, cm).
 - Saves via `PATCH /api/body-profile`. No blocking, no required fields.
 
 **Feedback section** (a card or a row of cards, one per metric):
