@@ -26,7 +26,9 @@ export async function PATCH(
   }
   if (body.date !== undefined) {
     const d = String(body.date);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return NextResponse.json({ error: "Date must be YYYY-MM-DD" }, { status: 400 });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || isNaN(Date.parse(d))) {
+      return NextResponse.json({ error: "Date must be a valid YYYY-MM-DD date" }, { status: 400 });
+    }
     updates.date = d;
   }
 

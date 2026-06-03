@@ -374,6 +374,7 @@ function LogHistoryCard({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -381,25 +382,43 @@ function LogHistoryCard({
     setEditingId(entry.id);
     setEditValue(String(entry.value));
     setEditDate(entry.date);
+    setSaveError("");
   }
 
   function cancelEdit() {
     setEditingId(null);
+    setSaveError("");
   }
 
   async function saveEdit(id: number) {
+    const v = parseFloat(editValue);
+    if (!editValue || isNaN(v) || v <= 0) {
+      setSaveError("Value must be a positive number");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(editDate)) {
+      setSaveError("Date must be YYYY-MM-DD");
+      return;
+    }
     setSaving(true);
-    await fetch(`/api/body-metrics/${id}`, {
+    setSaveError("");
+    const res = await fetch(`/api/body-metrics/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ value: parseFloat(editValue), date: editDate }),
+      body: JSON.stringify({ value: v, date: editDate }),
     });
     setSaving(false);
+    if (!res.ok) {
+      const data = await res.json() as { error?: string };
+      setSaveError(data.error ?? "Could not save. Please try again.");
+      return;
+    }
     setEditingId(null);
     onRefresh();
   }
 
   async function deleteEntry(id: number) {
+    if (!window.confirm("Delete this entry? This cannot be undone.")) return;
     setDeletingId(id);
     await fetch(`/api/body-metrics/${id}`, { method: "DELETE" });
     setDeletingId(null);
@@ -422,7 +441,8 @@ function LogHistoryCard({
             const isEditing = editingId === entry.id;
             const isDeleting = deletingId === entry.id;
             return (
-              <div key={entry.id} className="flex items-center gap-3 px-6 py-3">
+              <div key={entry.id} className="flex flex-col px-6 py-3">
+                <div className="flex items-center gap-3">
                 {isEditing ? (
                   <>
                     <Input
@@ -446,7 +466,7 @@ function LogHistoryCard({
                       disabled={saving}
                       onClick={() => saveEdit(entry.id)}
                     >
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-4 w-4 text-[var(--palette-green)]" />
                     </Button>
                     <Button
                       size="icon"
@@ -485,6 +505,10 @@ function LogHistoryCard({
                       </Button>
                     </div>
                   </>
+                )}
+                </div>
+                {isEditing && saveError && (
+                  <p className="text-xs text-destructive mt-1">{saveError}</p>
                 )}
               </div>
             );
