@@ -328,12 +328,6 @@ export function BodyMetricsView() {
         </Card>
       </div>
 
-      <LogHistoryCard
-        allMetrics={allMetrics}
-        selectedType={selectedType}
-        onRefresh={fetchMetrics}
-      />
-
       <AboutYouCard
         profile={profile}
         onProfileUpdate={setProfile}
@@ -349,6 +343,12 @@ export function BodyMetricsView() {
         dobRef={dobRef}
         sexRef={sexRef}
         heightRef={heightRef}
+      />
+
+      <LogHistoryCard
+        allMetrics={allMetrics}
+        selectedType={selectedType}
+        onRefresh={fetchMetrics}
       />
     </div>
   );
