@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Pencil, Trash2, Check, X } from "lucide-react";
 import { format } from "date-fns";
 import {
   LineChart,
@@ -328,6 +328,12 @@ export function BodyMetricsView() {
         </Card>
       </div>
 
+      <LogHistoryCard
+        allMetrics={allMetrics}
+        selectedType={selectedType}
+        onRefresh={fetchMetrics}
+      />
+
       <AboutYouCard
         profile={profile}
         onProfileUpdate={setProfile}
@@ -345,6 +351,171 @@ export function BodyMetricsView() {
         heightRef={heightRef}
       />
     </div>
+  );
+}
+
+// ─── Log History card ─────────────────────────────────────────────────────────
+
+function LogHistoryCard({
+  allMetrics,
+  selectedType,
+  onRefresh,
+}: {
+  allMetrics: BodyMetric[];
+  selectedType: BodyMetricType;
+  onRefresh: () => void;
+}) {
+  const cfg = METRIC_CONFIG.find((m) => m.type === selectedType)!;
+  const entries = allMetrics
+    .filter((m) => m.metricType === selectedType)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 20);
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  function startEdit(entry: BodyMetric) {
+    setEditingId(entry.id);
+    setEditValue(String(entry.value));
+    setEditDate(entry.date);
+    setSaveError("");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setSaveError("");
+  }
+
+  async function saveEdit(id: number) {
+    const v = parseFloat(editValue);
+    if (!editValue || isNaN(v) || v <= 0) {
+      setSaveError("Value must be a positive number");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(editDate)) {
+      setSaveError("Date must be YYYY-MM-DD");
+      return;
+    }
+    setSaving(true);
+    setSaveError("");
+    const res = await fetch(`/api/body-metrics/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: v, date: editDate }),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      const data = await res.json() as { error?: string };
+      setSaveError(data.error ?? "Could not save. Please try again.");
+      return;
+    }
+    setEditingId(null);
+    onRefresh();
+  }
+
+  async function deleteEntry(id: number) {
+    if (!window.confirm("Delete this entry? This cannot be undone.")) return;
+    setDeletingId(id);
+    await fetch(`/api/body-metrics/${id}`, { method: "DELETE" });
+    setDeletingId(null);
+    onRefresh();
+  }
+
+  if (entries.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">
+          {cfg.label} log
+        </CardTitle>
+        <CardDescription>Recent entries — click the pencil to edit a value or date, trash to delete.</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="divide-y">
+          {entries.map((entry) => {
+            const isEditing = editingId === entry.id;
+            const isDeleting = deletingId === entry.id;
+            return (
+              <div key={entry.id} className="flex flex-col px-6 py-3">
+                <div className="flex items-center gap-3">
+                {isEditing ? (
+                  <>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="h-8 w-28"
+                    />
+                    <span className="text-xs text-muted-foreground">{cfg.unit}</span>
+                    <Input
+                      type="date"
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                      className="h-8 w-36"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 ml-auto shrink-0"
+                      disabled={saving}
+                      onClick={() => saveEdit(entry.id)}
+                    >
+                      <Check className="h-4 w-4 text-[var(--palette-green)]" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 shrink-0"
+                      onClick={cancelEdit}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-medium tabular-nums w-20">
+                      {entry.value} <span className="text-xs text-muted-foreground font-normal">{cfg.unit}</span>
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {format(new Date(entry.date + "T00:00:00"), "d MMM yyyy")}
+                    </span>
+                    <div className="ml-auto flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7"
+                        onClick={() => startEdit(entry)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        disabled={isDeleting}
+                        onClick={() => deleteEntry(entry.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </>
+                )}
+                </div>
+                {isEditing && saveError && (
+                  <p className="text-xs text-destructive mt-1">{saveError}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
