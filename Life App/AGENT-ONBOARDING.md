@@ -1,7 +1,7 @@
 # Life App -- Agent Onboarding Document
 
 > **Purpose**: Get a new AI agent up to speed on the Life App project quickly.
-> **Last updated**: 2026-04-26
+> **Last updated**: 2026-06-04
 
 ---
 
@@ -11,11 +11,13 @@ Before doing anything, read these documents in order:
 
 1. **Constitution** -- `Life App/.specify/memory/constitution.md` (governing principles)
 2. **Roadmap** -- `Life App/ROADMAP.md` (feature status, tech stack, what's built)
-3. **Data Model** -- `Life App/specs/master/data-model.md` (database tables and relationships)
-4. **API Contracts** -- `Life App/specs/master/contracts/api-routes.md` (all REST endpoints)
-5. **Tasks Log** -- `Life App/specs/master/tasks.md` (completed work and architectural iterations)
-6. **Goals V2 Spec** -- `Life App/.specify/specs/goals-v2/spec.md` (goal hierarchy, tallies, pace tracking)
-7. **Deployment Guide** -- `Life App/DEPLOYMENT.md` (Railway setup, env vars, how apply-schema.js works, troubleshooting)
+3. **System Overview** -- `Life App/specs/master/system-overview.md` (page → component → route → table map; cross-feature interactions; architectural patterns)
+4. **Feature Specs Registry** -- `Life App/specs/master/feature-specs.md` (locked decisions and technical footprint for every feature in one file)
+5. **Data Model** -- `Life App/specs/master/data-model.md` (database tables and relationships)
+6. **API Contracts** -- `Life App/specs/master/contracts/api-routes.md` (all REST endpoints)
+7. **Tasks Log** -- `Life App/specs/master/tasks.md` (completed work and architectural iterations)
+8. **Goals V2 Spec** -- `Life App/.specify/specs/goals-v2/spec.md` (goal hierarchy, tallies, pace tracking)
+9. **Deployment Guide** -- `Life App/DEPLOYMENT.md` (Railway setup, env vars, how apply-schema.js works, troubleshooting)
 
 Then familiarize yourself with the codebase structure:
 
@@ -99,6 +101,8 @@ These are the rules for working on this project. They come from the constitution
 | Climbing Training Periodization | Built |
 | Tennis Training Periodization | Built |
 | Running Training Periodization | Built |
+| Habit Tracking | Built |
+| Body Metrics Guidance (interpretation, About You, edit/delete log) | Built |
 | First-Time Onboarding Wizard | Removed |
 
 **Infrastructure & overhauls:**
@@ -260,10 +264,12 @@ these files to get up to speed:
 1. Life App/AGENT-ONBOARDING.md (this document -- read first)
 2. Life App/ROADMAP.md
 3. Life App/.specify/memory/constitution.md
-4. Life App/specs/master/data-model.md
-5. Life App/specs/master/contracts/api-routes.md
-6. Life App/specs/master/tasks.md
-7. Life App/DEPLOYMENT.md
+4. Life App/specs/master/system-overview.md
+5. Life App/specs/master/feature-specs.md
+6. Life App/specs/master/data-model.md
+7. Life App/specs/master/contracts/api-routes.md
+8. Life App/specs/master/tasks.md
+9. Life App/DEPLOYMENT.md
 
 Then explore the codebase: schema, types, components, and API routes.
 Let me know when you're ready and if you have any questions.
