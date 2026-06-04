@@ -53,6 +53,7 @@ Each entry shows: what the user sees → the primary components → the API rout
 
 **API routes used**:
 - `GET /api/activities` — today's scheduled blocks
+- `PATCH /api/activities/:id` — check off or uncheck a scheduled activity (triggers the activity-log bridge)
 - `GET /api/weekly-plan` — current week's plan
 - `GET /api/weekly-focus-goals` — which goals are in focus this week
 - `GET /api/habits` — habits with recent log dates (for strip)
@@ -214,11 +215,16 @@ The Activities page has multiple tabs. Each tab is its own major feature.
 - `src/components/library/bookmarks-view.tsx` — all bookmarked items across topics
 
 **API routes used**:
-- `GET /api/library` — all library items (optionally filtered by topic)
-- `GET/POST/PATCH/DELETE /api/library/:id` — admin CRUD
+- `GET /api/library/topics` — all topics
+- `GET /api/library/topics/:slug` — topic with its categories and items
+- `POST /api/library/topics/:slug/categories` — create a category (admin)
+- `PATCH/DELETE /api/library/categories/:id` — update or delete a category (admin)
+- `POST /api/library/categories/:id/items` — create an item (admin)
+- `PUT /api/library/categories/:id/reorder` — reorder items within a category (admin)
+- `PATCH/DELETE /api/library/items/:id` — update or delete an item (admin)
 - `GET /api/library/bookmarks` — user's bookmarked items
 - `POST /api/library/bookmarks` — add bookmark
-- `DELETE /api/library/bookmarks/:id` — remove bookmark
+- `DELETE /api/library/bookmarks/:itemId` — remove bookmark
 
 **Tables**:
 - `library_topics`, `library_categories`, `library_items` — content tables (no `user_id`; shared across users)
@@ -237,7 +243,7 @@ The Activities page has multiple tabs. Each tab is its own major feature.
 **API routes used**:
 - `PATCH /api/user/password` — change the current user's password
 - `GET/POST /api/roles`, `PATCH/DELETE /api/roles/:id` — via the Roles sub-section
-- `GET/POST/PATCH/DELETE /api/activity-types`, `/api/activity-types/:id` — via Activity Types sub-section
+- `GET/POST /api/activity-types`, `PATCH/DELETE /api/activity-types/:id` — via Activity Types sub-section
 - `GET/PATCH /api/scheduler-settings`, `GET/POST/DELETE /api/blackout-dates` — via Scheduler sub-section
 
 **Tables**:
