@@ -27,9 +27,9 @@ A new optional text input — "What do I feel or get after doing this?" — comp
 **Schema change:** `ALTER TABLE habits ADD COLUMN reward TEXT` (nullable, max 200 chars)
 
 **UI placement:**
-- Quick-add modal: new field below "Minimum version"
 - Walkthrough: new Step 5 "What's your reward?" inserted between minimum version (Step 4) and review (Step 6). Review step becomes Step 6.
 - Edit modal: new field below minimum version
+- Quick-add modal: reward field is **not shown**. Note: quick-add does gain a cue type dropdown and keystone toggle in V2, growing from 5 to 7 elements. Reward was excluded as the least urgent field for a first-time create; it can always be added in the edit modal immediately after.
 
 **Validation:** optional; if provided, trimmed, max 200 chars. Empty string stored as NULL.
 
@@ -42,7 +42,7 @@ A structured tag alongside the existing free-text cue field. The five categories
 **Schema change:** `ALTER TABLE habits ADD COLUMN cue_type TEXT` (nullable; one of the five values or NULL)
 
 **UI placement:**
-- The cue field becomes a two-part input: a type selector (five pill buttons or a small segmented control) followed by the existing free-text field.
+- The cue field becomes a two-part input: a small dropdown for the type selector followed by the existing free-text field.
 - Both remain fully optional. A user can fill the text without picking a type, or leave both empty.
 - Walkthrough Step 3 (cue) gains the type selector above the text input.
 
@@ -109,7 +109,7 @@ The strip, streak readout, and edit affordance remain in their current positions
 
 ### 7. Expanded editorial section
 
-The three existing editorial blocks at the bottom of the Habits page ("Start with who you are becoming", "The minimum version is the real habit", "Do not miss twice") are retained and permanently visible in both the empty and populated states.
+The three existing editorial blocks at the bottom of the Habits page ("Start with who you are becoming", "The minimum version is the real habit", "Do not miss twice") are retained. All five blocks (existing three plus two new ones below) are collapsible, expanded by default. Collapsed state persists in `localStorage`.
 
 Two new blocks are added from the Duhigg framework:
 

@@ -17,6 +17,9 @@ const IDENTITY_MAX = 200;
 const NAME_MAX = 50;
 const CUE_MAX = 200;
 const MINIMUM_VERSION_MAX = 200;
+const REWARD_MAX = 200;
+
+const VALID_CUE_TYPES = ["location", "time", "emotional_state", "other_people", "preceding_action"] as const;
 
 function validateIdentity(value: unknown): string | null {
   if (typeof value !== "string" || value.trim().length === 0) return "Identity is required";
@@ -117,6 +120,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid color format" }, { status: 400 });
   }
 
+  const rewardError = validateOptionalText(body.reward, "Reward", REWARD_MAX);
+  if (rewardError) return NextResponse.json({ error: rewardError }, { status: 400 });
+
+  const cueType = body.cueType ?? null;
+  if (cueType !== null && !(VALID_CUE_TYPES as readonly string[]).includes(cueType)) {
+    return NextResponse.json({ error: "Invalid cue type." }, { status: 400 });
+  }
+
   // displayOrder is server-computed (spec FR-007). Compute max across active
   // AND archived rows so a restored habit cannot collide with a newly created
   // one. Falls back to -1 when the user has no habits yet, so the first habit
@@ -138,6 +149,12 @@ export async function POST(request: NextRequest) {
         typeof body.minimumVersion === "string" && body.minimumVersion.trim().length > 0
           ? body.minimumVersion.trim()
           : null,
+      reward:
+        typeof body.reward === "string" && body.reward.trim().length > 0
+          ? body.reward.trim()
+          : null,
+      cueType: cueType,
+      isKeystone: body.isKeystone === true,
       color: body.color,
       displayOrder: maxOrder + 1,
     })
