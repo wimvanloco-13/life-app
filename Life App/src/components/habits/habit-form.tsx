@@ -127,6 +127,68 @@ async function archiveHabit(id: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to archive habit");
 }
 
+// ─── Module-level sub-components ──────────────────────────────────────────────
+// Must be defined outside HabitForm so React's reconciliation sees a stable
+// component identity across re-renders. Inner component definitions cause
+// unmount/remount on every parent render, snapping dropdowns closed mid-use.
+
+const NONE_VALUE = "__none__";
+
+interface CueTypeDropdownProps {
+  value: string | null | undefined;
+  onChange: (value: string | null) => void;
+  autoFocus?: boolean;
+}
+
+function CueTypeDropdown({ value, onChange, autoFocus }: CueTypeDropdownProps) {
+  return (
+    <Select
+      value={value ?? NONE_VALUE}
+      onValueChange={(v) => onChange(v === NONE_VALUE ? null : v)}
+    >
+      <SelectTrigger className="w-full text-sm h-8" autoFocus={autoFocus}>
+        <SelectValue placeholder="Category (optional)" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE_VALUE}>None</SelectItem>
+        {Object.entries(CUE_TYPE_LABELS).map(([v, label]) => (
+          <SelectItem key={v} value={v}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+interface KeystoneCheckboxProps {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+function KeystoneCheckbox({ id, checked, onChange }: KeystoneCheckboxProps) {
+  return (
+    <div className="flex items-start gap-2.5 pt-1">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-input mt-0.5 shrink-0 cursor-pointer"
+      />
+      <div>
+        <label htmlFor={id} className="text-sm font-medium cursor-pointer">
+          This is a keystone habit
+        </label>
+        <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+          Keystone habits tend to pull other positive changes along with them.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function initialDraft(habit?: Habit): Partial<HabitDraft> {
   if (habit) {
     return {
@@ -199,55 +261,6 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
     }
   }
 
-  // ─── Cue type dropdown (shared across all surfaces) ───────────────────────
-
-  const NONE_VALUE = "__none__";
-
-  function CueTypeDropdown() {
-    return (
-      <Select
-        value={draft.cueType ?? NONE_VALUE}
-        onValueChange={(v) => patch("cueType", v === NONE_VALUE ? null : v)}
-      >
-        <SelectTrigger className="w-full text-sm h-8">
-          <SelectValue placeholder="Category (optional)" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE_VALUE}>None</SelectItem>
-          {Object.entries(CUE_TYPE_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
-  // ─── Keystone checkbox (shared across all surfaces) ───────────────────────
-
-  function KeystoneCheckbox({ id }: { id: string }) {
-    return (
-      <div className="flex items-start gap-2.5 pt-1">
-        <input
-          id={id}
-          type="checkbox"
-          checked={draft.isKeystone ?? false}
-          onChange={(e) => patch("isKeystone", e.target.checked)}
-          className="h-4 w-4 rounded border-input mt-0.5 shrink-0 cursor-pointer"
-        />
-        <div>
-          <label htmlFor={id} className="text-sm font-medium cursor-pointer">
-            This is a keystone habit
-          </label>
-          <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-            Keystone habits tend to pull other positive changes along with them.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   // ─── Quick mode ──────────────────────────────────────────────────────────────
 
   if (mode === "quick") {
@@ -292,7 +305,7 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
             {/* Cue type + text */}
             <div className="flex flex-col gap-1.5">
               <Label>Cue (optional)</Label>
-              <CueTypeDropdown />
+              <CueTypeDropdown value={draft.cueType} onChange={(v) => patch("cueType", v)} />
               <Input
                 placeholder="After I make coffee"
                 value={draft.cue ?? ""}
@@ -331,7 +344,7 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
               <ColorPicker selected={draft.color ?? PRESET_COLORS[0]} onChange={(c) => patch("color", c)} />
             </div>
 
-            <KeystoneCheckbox id="q-keystone" />
+            <KeystoneCheckbox id="q-keystone" checked={draft.isKeystone ?? false} onChange={(v) => patch("isKeystone", v)} />
 
             {error && <p className="text-xs text-destructive">{error}</p>}
 
@@ -433,8 +446,14 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                   {currentStep.subtitle}
                 </p>
               )}
-              {/* Cue type dropdown — only shown on the cue step */}
-              {isCueStep && <CueTypeDropdown />}
+              {/* Cue type dropdown — only shown on the cue step; autoFocus keeps keyboard users on a focused element */}
+              {isCueStep && (
+                <CueTypeDropdown
+                  value={draft.cueType}
+                  onChange={(v) => patch("cueType", v)}
+                  autoFocus
+                />
+              )}
               {currentStep.multiline ? (
                 <Textarea
                   rows={3}
@@ -501,7 +520,7 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                   onChange={(c) => patch("color", c)}
                 />
               </div>
-              <KeystoneCheckbox id="wt-keystone" />
+              <KeystoneCheckbox id="wt-keystone" checked={draft.isKeystone ?? false} onChange={(v) => patch("isKeystone", v)} />
             </div>
           )}
 
