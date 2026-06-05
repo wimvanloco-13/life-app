@@ -498,6 +498,16 @@ export interface LevelAssessment {
 
 // ─── Habits ─────────────────────────────────────────────
 
+export const CUE_TYPE_LABELS: Record<string, string> = {
+  location: "Location",
+  time: "Time",
+  emotional_state: "Feeling",
+  other_people: "Person",
+  preceding_action: "Preceding action",
+};
+
+export type CueType = keyof typeof CUE_TYPE_LABELS;
+
 export interface Habit {
   id: number;
   userId: string;
@@ -505,6 +515,9 @@ export interface Habit {
   name: string;
   cue: string | null;
   minimumVersion: string | null;
+  reward: string | null;
+  cueType: string | null;
+  isKeystone: boolean;
   color: string;
   displayOrder: number;
   isArchived: boolean;
@@ -539,6 +552,9 @@ export interface HabitDraft {
   name: string;
   cue: string | null;
   minimumVersion: string | null;
+  reward?: string | null;
+  cueType?: string | null;
+  isKeystone?: boolean;
   color: string;
 }
 

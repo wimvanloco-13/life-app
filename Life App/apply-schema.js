@@ -439,6 +439,9 @@ const alterStatements = [
   `ALTER TABLE training_phases ADD COLUMN mental_game_content TEXT`,
   `ALTER TABLE activities ADD COLUMN session_type TEXT NOT NULL DEFAULT 'training'`,
   `ALTER TABLE activity_types ADD COLUMN default_duration_minutes INTEGER NOT NULL DEFAULT 60`,
+  `ALTER TABLE habits ADD COLUMN reward TEXT`,
+  `ALTER TABLE habits ADD COLUMN cue_type TEXT`,
+  `ALTER TABLE habits ADD COLUMN is_keystone INTEGER NOT NULL DEFAULT 0`,
 ];
 
 for (const sql of alterStatements) {

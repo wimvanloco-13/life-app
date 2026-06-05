@@ -9,6 +9,9 @@ const IDENTITY_MAX = 200;
 const NAME_MAX = 50;
 const CUE_MAX = 200;
 const MINIMUM_VERSION_MAX = 200;
+const REWARD_MAX = 200;
+
+const VALID_CUE_TYPES = ["location", "time", "emotional_state", "other_people", "preceding_action"] as const;
 
 export async function PATCH(
   request: NextRequest,
@@ -86,6 +89,30 @@ export async function PATCH(
     }
     updates.color = body.color;
   }
+
+  if (body.reward !== undefined) {
+    if (body.reward === null || body.reward === "") {
+      updates.reward = null;
+    } else if (typeof body.reward !== "string") {
+      return NextResponse.json({ error: "Reward must be a string" }, { status: 400 });
+    } else if (body.reward.trim().length > REWARD_MAX) {
+      return NextResponse.json({ error: `Reward must be ${REWARD_MAX} characters or less` }, { status: 400 });
+    } else {
+      updates.reward = body.reward.trim().length === 0 ? null : body.reward.trim();
+    }
+  }
+
+  if (body.cueType !== undefined) {
+    if (body.cueType === null || body.cueType === "") {
+      updates.cueType = null;
+    } else if (!(VALID_CUE_TYPES as readonly string[]).includes(body.cueType)) {
+      return NextResponse.json({ error: "Invalid cue type." }, { status: 400 });
+    } else {
+      updates.cueType = body.cueType;
+    }
+  }
+
+  if (body.isKeystone !== undefined) updates.isKeystone = Boolean(body.isKeystone);
 
   if (body.isArchived !== undefined) updates.isArchived = Boolean(body.isArchived);
   if (body.displayOrder !== undefined) updates.displayOrder = Number(body.displayOrder);
