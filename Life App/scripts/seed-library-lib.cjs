@@ -582,6 +582,41 @@ const SEED_DATA = [
         ],
       },
       {
+        title: "The Habit Loop",
+        items: [
+          {
+            title: "The Habit Loop", type: "concept",
+            what: "Every automatic behaviour runs on a three-part neurological loop: a cue that triggers the behaviour, the routine itself, and a reward that tells the brain whether to repeat it. Over time, the loop becomes encoded in the brain's basal ganglia and fires with almost no conscious participation.",
+            why: "Understanding this structure makes habits editable. Once you can name the cue and reward behind any behaviour, you can change the routine while keeping the same trigger and payoff — which is how lasting change actually happens. Without this map, you are trying to change behaviour without knowing which lever to pull.",
+            how: "For any habit you want to build or break, map all three parts before trying to act. What triggers the behaviour? What is the routine? What reward does the brain receive? A habit you cannot map is a habit you cannot change deliberately. Write it down: 'When [cue], I do [routine], and I get [reward].'",
+          },
+          {
+            title: "The Craving That Powers the Loop", type: "concept",
+            what: "The reward in a habit loop works not through satisfaction but through anticipation. The brain begins releasing dopamine before the routine starts — at the moment the cue appears. This anticipatory craving is what drives the behaviour, not the reward itself.",
+            why: "This explains why simply intending to reward yourself after a new habit is often not enough. The reward must become something the brain learns to expect before the routine begins. The craving is the fuel. Once a craving is established, the cue alone is enough to trigger a powerful pull toward the routine.",
+            how: "To build a craving for a new habit's reward, make the reward vivid and consistent. Before starting the routine, briefly anticipate the reward — the endorphin rush, the sense of calm, the satisfaction of the completed action. Keep the reward identical every time. The brain will begin anticipating it automatically within days to weeks.",
+          },
+          {
+            title: "The Golden Rule of Habit Change", type: "concept",
+            what: "You cannot eliminate a bad habit by willpower alone. You can only replace it. The most effective method: keep the original cue and reward, and insert a new routine between them. The cue and reward remain intact; the routine is the only variable.",
+            why: "Habits are encoded neurological patterns that do not disappear even when dormant. The cue and reward are already wired together in the brain — trying to ignore both simultaneously is fighting on two fronts at once. Keeping the familiar cue and reward channels the brain's existing pattern rather than overriding it, which is why replacement succeeds where suppression fails.",
+            how: "For any habit you want to break: (1) identify the cue and reward — what triggers it and what craving does the reward satisfy? (2) Design a new routine that delivers the same reward from the same cue. The more closely the new reward matches the original craving, the stronger the replacement will be. Belief that the change is possible — often reinforced by a group — is what makes it stick long-term.",
+          },
+          {
+            title: "Keystone Habits", type: "concept",
+            what: "Some habits, when established, trigger a cascade of positive changes across unrelated areas of life. These keystone habits do not directly cause the other changes — they create structural conditions, a new sense of identity, or daily anchors that make other changes easier.",
+            why: "Not all habits have equal leverage. A keystone habit is worth more than several isolated habits because it changes how you see yourself and reshapes your environment. Exercise is the most studied example: people who begin exercising consistently tend to improve eating patterns, sleep quality, and stress management without deliberately targeting those areas.",
+            how: "When choosing which habit to build first, consider its cascading potential. A habit that creates a new daily structure, produces a small win you can build on, or shifts your self-image is more likely to be keystone. Ask: if this habit takes hold, what else becomes easier or more natural? Start with the habit that pulls the most other things along with it.",
+          },
+          {
+            title: "Isolating the Cue", type: "tip",
+            what: "Every habit cue falls into one of five categories: location, time, emotional state, other people, or the immediately preceding action. Identifying which category your cue belongs to makes it detectable and therefore controllable.",
+            why: "Cues are often invisible precisely because they are everywhere. Narrowing the search to five specific dimensions makes patterns detectable within a few days of observation rather than months of vague introspection. Most habit cues that feel mysterious resolve quickly when you log these five data points consistently.",
+            how: "When you notice a habit triggered — wanted or unwanted — write down all five immediately: where are you? What time is it? What are you feeling? Who is around? What action immediately preceded it? After 3 to 5 observations, the consistent element is the cue. For a habit you want to build, use the most reliable category as your designed trigger.",
+          },
+        ],
+      },
+      {
         title: "Advanced Strategies",
         items: [
           {
@@ -607,6 +642,12 @@ const SEED_DATA = [
             what: "Small, seemingly insignificant choices that set the trajectory for the following minutes or hours — opening the fridge when tired, sitting on the couch at 7pm, picking up the phone after waking.",
             why: "Each decisive moment determines the path you are on for the next window of time. Awareness of these moments allows you to interrupt automatic downstream behaviours before they begin.",
             how: "Identify the 3 to 5 small choices in your day that reliably trigger your best or worst patterns. Decide in advance what you will do at each one. The moment arrives and the decision is already made.",
+          },
+          {
+            title: "Willpower Depletion", type: "concept",
+            what: "Willpower is a finite resource that depletes with use throughout the day. Each act of self-control — resisting distraction, making difficult decisions, suppressing impulses — draws from the same reserve. It is most reliable early in the day and least reliable when mental or physical fatigue is high.",
+            why: "Most habit failures happen not because of weak character but because willpower has already been spent on other decisions by the time the habit needs it. Planning a new habit for a time when willpower is reliably available — or designing the environment so willpower is not required — prevents this failure mode entirely.",
+            how: "Place demanding habits early in the day, before willpower is consumed by other decisions. For any habit that requires resisting temptation, redesign the environment so the temptation is never present — willpower is not needed if the cue for the unwanted behaviour is never encountered. Have a specific plan for high-stress moments when depletion is predictable.",
           },
           {
             title: "Dopamine and Anticipation", type: "concept",
