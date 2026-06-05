@@ -1,6 +1,6 @@
 ﻿# Life App -- Feature Roadmap
 
-> Last updated: 2026-06-02.
+> Last updated: 2026-06-05.
 
 ## Product Vision
 
@@ -635,6 +635,38 @@ The refactor introduces three new shared UI primitives (icon registry, `LucideIc
 **Routes added**: `GET/POST /api/habits`, `PATCH/DELETE /api/habits/:id`, `PUT /api/habits/reorder`, `POST/DELETE /api/habit-logs`
 
 **Dependencies**: Friend Release (auth + per-user scoping).
+
+---
+
+### Habit Tracking V2
+
+**Spec ID**: `habit-tracking-v2`
+**Status**: Built (complete — PRs #59, #60)
+**Completed**: 2026-06-05
+
+**What it does**: Extends Habit Tracking V1 with principles from *The Power of Habit* (Duhigg). Adds structured cue categories (Location, Time, Emotional state, Other people, Preceding action), a reward field that completes the Cue → Routine → Reward loop, keystone habit flagging, auto-generated implementation intention sentences, a "never miss twice" nudge, and two new editorial blocks.
+
+**What has been built**:
+
+*Phase 1 — Foundation (PR #59)*
+- Schema: `habits.reward TEXT`, `habits.cue_type TEXT`, `habits.is_keystone INTEGER NOT NULL DEFAULT 0` (idempotent `ALTER TABLE ADD COLUMN` in `apply-schema.js`)
+- Types: `CUE_TYPE_LABELS` constant and `CueType` type in `src/types/index.ts`; `reward`, `cueType`, `isKeystone` fields added to `Habit` and `HabitDraft` interfaces
+- Pure helpers (`src/lib/habit-v2-helpers.ts`): `buildImplementationIntention(habit)` builds the "When [CUE], I will [NAME] to get [REWARD]" sentence (returns null when cue text is empty); `shouldShowNeverMissTwice(logDates, today)` returns true when yesterday had no log but any of the prior 13 days did — all date arithmetic anchored to UTC noon to prevent timezone drift
+- API: `POST /api/habits` and `PATCH /api/habits/:id` extended to accept, validate, and persist the three new fields
+- Tests: 15 unit tests for both helpers (8 for implementation intention, 7 for never-miss-twice)
+
+*Phase 2 — UI (PR #60)*
+- `habit-form.tsx`: cue type dropdown (five labelled options + None) added in quick-add, walkthrough step 3, and edit modal; reward text input added in walkthrough step 5 (new step) and edit modal; keystone checkbox added in quick-add, walkthrough review, and edit modal; `CueTypeDropdown` and `KeystoneCheckbox` defined as module-level components to ensure stable React identity
+- `habit-row.tsx`: implementation intention sentence rendered below habit name/identity; `Lucide <Gem />` icon rendered inline with habit name for keystone habits; never-miss-twice nudge shown in inline feedback slot (affirmation takes priority)
+- `habit-principles.tsx`: two new editorial blocks ("Habits run on a loop, not willpower." and "You don't break habits. You replace them."); entire section made collapsible with chevron toggle, state persisted in `localStorage` keyed by `userId`
+- `habits/page.tsx` + `habit-list.tsx`: converted page to async server component to source `userId` from `auth()` and thread it to `HabitPrinciples`
+- `habit-form.test.tsx`: updated walkthrough state machine tests to reflect 6-step flow
+
+**Schema changes**: Three new columns on `habits` table (`reward`, `cue_type`, `is_keystone`).
+
+**Routes modified**: `POST /api/habits`, `PATCH /api/habits/:id` (new fields accepted and validated)
+
+**Dependencies**: Habit Tracking V1 (built).
 
 ---
 

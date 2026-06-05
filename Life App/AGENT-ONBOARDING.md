@@ -1,7 +1,7 @@
 # Life App -- Agent Onboarding Document
 
 > **Purpose**: Get a new AI agent up to speed on the Life App project quickly.
-> **Last updated**: 2026-06-04
+> **Last updated**: 2026-06-05
 
 ---
 
@@ -102,6 +102,7 @@ These are the rules for working on this project. They come from the constitution
 | Tennis Training Periodization | Built |
 | Running Training Periodization | Built |
 | Habit Tracking | Built |
+| Habit Tracking V2 (habit loop, cue types, keystone, nudge, editorial) | Built |
 | Body Metrics Guidance (interpretation, About You, edit/delete log) | Built |
 | First-Time Onboarding Wizard | Removed |
 
