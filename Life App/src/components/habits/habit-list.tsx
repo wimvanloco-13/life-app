@@ -45,7 +45,7 @@ function getLocalToday(): string {
   return new Date().toLocaleDateString("sv-SE");
 }
 
-export function HabitList() {
+export function HabitList({ userId }: { userId?: string }) {
   const [activeHabits, setActiveHabits] = useState<HabitWithRecentLogs[]>([]);
   const [archivedHabits, setArchivedHabits] = useState<HabitWithRecentLogs[]>([]);
   const [loading, setLoading] = useState(true);
@@ -404,7 +404,7 @@ export function HabitList() {
 
       {/* ── Principles — 3-column full-width below the list ── */}
       <div className="mt-12">
-        <HabitPrinciples horizontal />
+        <HabitPrinciples horizontal userId={userId} />
       </div>
 
       {/* Forms */}

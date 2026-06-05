@@ -9,7 +9,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { CUE_TYPE_LABELS } from "@/types";
 import type { Habit, HabitDraft } from "@/types";
 import { useState } from "react";
 
@@ -58,6 +66,15 @@ const WALKTHROUGH_STEPS = [
     subtitle: "The version so easy you can't say no. Show up, even briefly.",
     placeholder: "Put on my shoes and step outside",
     field: "minimumVersion" as keyof HabitDraft,
+    required: false,
+    multiline: false,
+  },
+  {
+    id: "reward" as const,
+    label: "What's your reward?",
+    subtitle: "Define the reward your brain learns to crave. Leave it blank if you're not sure yet.",
+    placeholder: "calm, clear-headed, energised",
+    field: "reward" as keyof HabitDraft,
     required: false,
     multiline: false,
   },
@@ -110,37 +127,95 @@ async function archiveHabit(id: number): Promise<void> {
   if (!res.ok) throw new Error("Failed to archive habit");
 }
 
+// ─── Module-level sub-components ──────────────────────────────────────────────
+// Must be defined outside HabitForm so React's reconciliation sees a stable
+// component identity across re-renders. Inner component definitions cause
+// unmount/remount on every parent render, snapping dropdowns closed mid-use.
+
+const NONE_VALUE = "__none__";
+
+interface CueTypeDropdownProps {
+  value: string | null | undefined;
+  onChange: (value: string | null) => void;
+  autoFocus?: boolean;
+}
+
+function CueTypeDropdown({ value, onChange, autoFocus }: CueTypeDropdownProps) {
+  return (
+    <Select
+      value={value ?? NONE_VALUE}
+      onValueChange={(v) => onChange(v === NONE_VALUE ? null : v)}
+    >
+      <SelectTrigger className="w-full text-sm h-8" autoFocus={autoFocus}>
+        <SelectValue placeholder="Category (optional)" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE_VALUE}>None</SelectItem>
+        {Object.entries(CUE_TYPE_LABELS).map(([v, label]) => (
+          <SelectItem key={v} value={v}>
+            {label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+interface KeystoneCheckboxProps {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}
+
+function KeystoneCheckbox({ id, checked, onChange }: KeystoneCheckboxProps) {
+  return (
+    <div className="flex items-start gap-2.5 pt-1">
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-input mt-0.5 shrink-0 cursor-pointer"
+      />
+      <div>
+        <label htmlFor={id} className="text-sm font-medium cursor-pointer">
+          This is a keystone habit
+        </label>
+        <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+          Keystone habits tend to pull other positive changes along with them.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function initialDraft(habit?: Habit): Partial<HabitDraft> {
+  if (habit) {
+    return {
+      identity: habit.identity,
+      name: habit.name,
+      cue: habit.cue ?? undefined,
+      cueType: habit.cueType ?? undefined,
+      minimumVersion: habit.minimumVersion ?? undefined,
+      reward: habit.reward ?? undefined,
+      isKeystone: habit.isKeystone ?? false,
+      color: habit.color,
+    };
+  }
+  return { color: PRESET_COLORS[0], isKeystone: false };
+}
+
 export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived }: HabitFormProps) {
   const isEditing = !!initial;
 
-  const [draft, setDraft] = useState<Partial<HabitDraft>>(() =>
-    initial
-      ? {
-          identity: initial.identity,
-          name: initial.name,
-          cue: initial.cue ?? undefined,
-          minimumVersion: initial.minimumVersion ?? undefined,
-          color: initial.color,
-        }
-      : { color: PRESET_COLORS[0] },
-  );
+  const [draft, setDraft] = useState<Partial<HabitDraft>>(() => initialDraft(initial));
   const [walkthroughStep, setWalkthroughStep] = useState<WalkthroughStep>("identity");
   const [submitting, setSubmitting] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function reset() {
-    setDraft(
-      initial
-        ? {
-            identity: initial.identity,
-            name: initial.name,
-            cue: initial.cue ?? undefined,
-            minimumVersion: initial.minimumVersion ?? undefined,
-            color: initial.color,
-          }
-        : { color: PRESET_COLORS[0] },
-    );
+    setDraft(initialDraft(initial));
     setWalkthroughStep("identity");
     setSubmitting(false);
     setArchiving(false);
@@ -152,7 +227,7 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
     onClose();
   }
 
-  function patch(field: keyof HabitDraft, value: string) {
+  function patch(field: keyof HabitDraft, value: string | boolean | null) {
     setDraft((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -198,8 +273,8 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-display text-base">
-            {isEditing ? "Edit habit" : "Add a habit"}
-          </DialogTitle>
+              {isEditing ? "Edit habit" : "Add a habit"}
+            </DialogTitle>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 mt-1">
@@ -223,15 +298,53 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                 placeholder="Morning run"
                 value={draft.name ?? ""}
                 onChange={(e) => patch("name", e.target.value)}
-                maxLength={80}
+                maxLength={50}
               />
             </div>
+
+            {/* Cue type + text */}
+            <div className="flex flex-col gap-1.5">
+              <Label>Cue (optional)</Label>
+              <CueTypeDropdown value={draft.cueType} onChange={(v) => patch("cueType", v)} />
+              <Input
+                placeholder="After I make coffee"
+                value={draft.cue ?? ""}
+                onChange={(e) => patch("cue", e.target.value)}
+                maxLength={200}
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="q-min">Two-minute version</Label>
+              <Input
+                id="q-min"
+                placeholder="Put on my shoes and step outside"
+                value={draft.minimumVersion ?? ""}
+                onChange={(e) => patch("minimumVersion", e.target.value)}
+                maxLength={200}
+              />
+            </div>
+
+            {isEditing && (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="q-reward">Reward (optional)</Label>
+                <Input
+                  id="q-reward"
+                  placeholder="calm, clear-headed, energised"
+                  value={draft.reward ?? ""}
+                  onChange={(e) => patch("reward", e.target.value)}
+                  maxLength={200}
+                />
+              </div>
+            )}
 
             {/* Color */}
             <div className="flex flex-col gap-1.5">
               <Label>Color</Label>
               <ColorPicker selected={draft.color ?? PRESET_COLORS[0]} onChange={(c) => patch("color", c)} />
             </div>
+
+            <KeystoneCheckbox id="q-keystone" checked={draft.isKeystone ?? false} onChange={(v) => patch("isKeystone", v)} />
 
             {error && <p className="text-xs text-destructive">{error}</p>}
 
@@ -296,6 +409,8 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
   const canProceed =
     !currentStep?.required || (currentValue as string).trim().length > 0;
 
+  const isCueStep = currentStep?.id === "cue";
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-sm">
@@ -331,6 +446,14 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                   {currentStep.subtitle}
                 </p>
               )}
+              {/* Cue type dropdown — only shown on the cue step; autoFocus keeps keyboard users on a focused element */}
+              {isCueStep && (
+                <CueTypeDropdown
+                  value={draft.cueType}
+                  onChange={(v) => patch("cueType", v)}
+                  autoFocus
+                />
+              )}
               {currentStep.multiline ? (
                 <Textarea
                   rows={3}
@@ -346,8 +469,8 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                   placeholder={currentStep.placeholder}
                   value={currentValue as string}
                   onChange={(e) => patch(currentStep.field, e.target.value)}
-                  maxLength={currentStep.field === "name" ? 80 : 200}
-                  autoFocus
+                  maxLength={currentStep.field === "name" ? 50 : 200}
+                  autoFocus={!isCueStep}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && canProceed) nextStep();
                   }}
@@ -372,7 +495,7 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
               {draft.cue && (
                 <ReviewRow
                   label="Cue"
-                  value={draft.cue}
+                  value={draft.cueType ? `${CUE_TYPE_LABELS[draft.cueType] ?? draft.cueType}: ${draft.cue}` : draft.cue}
                   onEdit={() => setWalkthroughStep("cue")}
                 />
               )}
@@ -383,6 +506,13 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                   onEdit={() => setWalkthroughStep("minimumVersion")}
                 />
               )}
+              {draft.reward && (
+                <ReviewRow
+                  label="Reward"
+                  value={draft.reward}
+                  onEdit={() => setWalkthroughStep("reward")}
+                />
+              )}
               <div className="flex flex-col gap-1.5">
                 <span className="text-xs text-muted-foreground">Color</span>
                 <ColorPicker
@@ -390,6 +520,7 @@ export function HabitForm({ open, mode, initial, onClose, onCreated, onArchived 
                   onChange={(c) => patch("color", c)}
                 />
               </div>
+              <KeystoneCheckbox id="wt-keystone" checked={draft.isKeystone ?? false} onChange={(v) => patch("isKeystone", v)} />
             </div>
           )}
 

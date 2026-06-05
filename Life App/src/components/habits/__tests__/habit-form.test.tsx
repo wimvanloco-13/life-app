@@ -27,7 +27,7 @@ describe("HabitForm walkthrough — state machine", () => {
   it("starts at step 1 (identity)", () => {
     renderWalkthrough();
     expect(screen.getByText("Who do you want to be?")).toBeInTheDocument();
-    expect(screen.getByText("1/5")).toBeInTheDocument();
+    expect(screen.getByText("1/6")).toBeInTheDocument();
   });
 
   it("Next is disabled when identity is empty", () => {
@@ -48,7 +48,7 @@ describe("HabitForm walkthrough — state machine", () => {
     await fillIdentity(user);
     await user.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText("What's the habit?")).toBeInTheDocument();
-    expect(screen.getByText("2/5")).toBeInTheDocument();
+    expect(screen.getByText("2/6")).toBeInTheDocument();
   });
 
   it("Next on step 2 is disabled when name is empty", async () => {
@@ -90,7 +90,7 @@ describe("HabitForm walkthrough — state machine", () => {
     expect(screen.getByText("What's the two-minute version?")).toBeInTheDocument();
   });
 
-  it("Skip on minimumVersion step reaches review", async () => {
+  it("Skip on minimumVersion step reaches reward, then skip reaches review", async () => {
     const user = userEvent.setup();
     renderWalkthrough();
     await fillIdentity(user);
@@ -99,8 +99,10 @@ describe("HabitForm walkthrough — state machine", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Skip" })); // skip cue
     await user.click(screen.getByRole("button", { name: "Skip" })); // skip minimumVersion
+    expect(screen.getByText("What's your reward?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Skip" })); // skip reward
     expect(screen.getByText("Review your habit")).toBeInTheDocument();
-    expect(screen.getByText("5/5")).toBeInTheDocument();
+    expect(screen.getByText("6/6")).toBeInTheDocument();
   });
 
   it("review shows the identity and name the user entered", async () => {
@@ -112,6 +114,7 @@ describe("HabitForm walkthrough — state machine", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Skip" }));
     await user.click(screen.getByRole("button", { name: "Skip" }));
+    await user.click(screen.getByRole("button", { name: "Skip" })); // skip reward
     expect(screen.getByText("I am someone who moves every day")).toBeInTheDocument();
     expect(screen.getByText("Morning run")).toBeInTheDocument();
   });
@@ -125,13 +128,14 @@ describe("HabitForm walkthrough — state machine", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Skip" }));
     await user.click(screen.getByRole("button", { name: "Skip" }));
+    await user.click(screen.getByRole("button", { name: "Skip" })); // skip reward
     // Click the first Edit link (next to Identity)
     const editButtons = screen.getAllByRole("button", { name: "Edit" });
     await user.click(editButtons[0]);
     expect(screen.getByText("Who do you want to be?")).toBeInTheDocument();
   });
 
-  it("Back on review returns to minimumVersion step", async () => {
+  it("Back on review returns to reward step", async () => {
     const user = userEvent.setup();
     renderWalkthrough();
     await fillIdentity(user);
@@ -140,7 +144,8 @@ describe("HabitForm walkthrough — state machine", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
     await user.click(screen.getByRole("button", { name: "Skip" }));
     await user.click(screen.getByRole("button", { name: "Skip" }));
+    await user.click(screen.getByRole("button", { name: "Skip" })); // skip reward → review
     await user.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByText("What's the two-minute version?")).toBeInTheDocument();
+    expect(screen.getByText("What's your reward?")).toBeInTheDocument();
   });
 });

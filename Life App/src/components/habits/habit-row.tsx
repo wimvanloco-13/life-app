@@ -6,11 +6,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { buildImplementationIntention, shouldShowNeverMissTwice } from "@/lib/habit-v2-helpers";
 import { computeStreaks } from "@/lib/habit-streaks";
 import type { HabitWithRecentLogs } from "@/types";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArchiveRestore, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { ArchiveRestore, Gem, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { HabitCalendar } from "./habit-calendar";
 
 interface HabitRowProps {
@@ -39,6 +40,8 @@ export function HabitRow({
   onArchiveToggle,
 }: HabitRowProps) {
   const { current: currentStreak, best: bestStreak } = computeStreaks(logDates, today);
+  const intentionSentence = buildImplementationIntention(habit);
+  const showNudge = !habit.isArchived && shouldShowNeverMissTwice(logDates, today);
 
   const { setNodeRef, transform, transition, isDragging } = useSortable({
     id: habit.id,
@@ -68,19 +71,33 @@ export function HabitRow({
             style={{ backgroundColor: habit.color }}
             aria-hidden="true"
           />
-          <p
-            className={`font-display text-[17px] font-semibold leading-snug ${
-              habit.isArchived ? "line-through text-muted-foreground" : ""
-            }`}
-          >
-            {habit.identity || habit.name}
-          </p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p
+              className={`font-display text-[17px] font-semibold leading-snug ${
+                habit.isArchived ? "line-through text-muted-foreground" : ""
+              }`}
+            >
+              {habit.identity || habit.name}
+            </p>
+            {habit.isKeystone && (
+              <span title="Keystone habit." className="shrink-0">
+                <Gem className="w-3.5 h-3.5 text-muted-foreground" />
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Habit name subtitle */}
         {habit.identity && (
           <p className="text-sm text-muted-foreground pl-6 leading-snug mt-1">
             {habit.name}
+          </p>
+        )}
+
+        {/* Implementation intention sentence */}
+        {intentionSentence && !habit.isArchived && (
+          <p className="text-[11px] text-muted-foreground italic truncate pl-6 mt-0.5">
+            {intentionSentence}
           </p>
         )}
 
@@ -101,13 +118,18 @@ export function HabitRow({
           </div>
         )}
 
-        {/* Inline feedback */}
+        {/* Inline feedback — affirmation takes priority, then nudge, then error */}
         {!habit.isArchived && affirmation && (
           <p className="pl-6 mt-2 text-xs text-muted-foreground animate-fade-in leading-snug">
             {affirmation}
           </p>
         )}
-        {!habit.isArchived && !affirmation && error && (
+        {!habit.isArchived && !affirmation && showNudge && (
+          <p className="pl-6 mt-2 text-xs text-muted-foreground leading-snug">
+            Yesterday was a miss. Today is the one that counts.
+          </p>
+        )}
+        {!habit.isArchived && !affirmation && !showNudge && error && (
           <p className="pl-6 mt-2 text-xs text-destructive leading-snug">{error}</p>
         )}
 
