@@ -1,6 +1,6 @@
 # Data Model: Life App
 
-> Last updated: 2026-06-02. Reflects current schema including Feature 1 (Calendar Management), Feature 2 (Fitness Tracking → Activities), Feature 3 (Budget Management), v2 Overhaul, Goals V2, Scheduler Rules, Training Periodization, **Training vs Supplemental Session Split (V1, partial)**, **Activities Refactoring V1** (`activities.is_log_entry` → `created_from_log`, `activity_types.default_duration_minutes`, schedule-to-log bridge, derived `linkedLogId` on activity GET), UI Refinements, **Friend Release** (users table, user_id on all data tables, per-user data isolation), **Role Scheduling Rules Removal** (dropped `max_weekly_occurrences` and `min_rest_days` from `roles`, added `[1, 7]` clamp on `goals.sessions_per_week`), **Habit Tracking Phase 1** (`habits`, `habit_logs` tables with unique index), **Budget Expansion** (`moment_logs` table; `bucket` on `spending_categories`; `bucket_targets`, `moment_threshold`, `target_annual_spending`, `state_pension_annual_amount` on `budget_settings`), and **Body Metrics Guidance** (`user_body_profiles` table for optional demographic inputs powering client-side metric interpretation).
+> Last updated: 2026-06-05. Reflects current schema including Feature 1 (Calendar Management), Feature 2 (Fitness Tracking → Activities), Feature 3 (Budget Management), v2 Overhaul, Goals V2, Scheduler Rules, Training Periodization, **Training vs Supplemental Session Split (V1, partial)**, **Activities Refactoring V1** (`activities.is_log_entry` → `created_from_log`, `activity_types.default_duration_minutes`, schedule-to-log bridge, derived `linkedLogId` on activity GET), UI Refinements, **Friend Release** (users table, user_id on all data tables, per-user data isolation), **Role Scheduling Rules Removal** (dropped `max_weekly_occurrences` and `min_rest_days` from `roles`, added `[1, 7]` clamp on `goals.sessions_per_week`), **Habit Tracking V1** (`habits`, `habit_logs` tables with unique index), **Habit Tracking V2** (`habits.reward`, `habits.cue_type`, `habits.is_keystone` added), **Budget Expansion** (`moment_logs` table; `bucket` on `spending_categories`; `bucket_targets`, `moment_threshold`, `target_annual_spending`, `state_pension_annual_amount` on `budget_settings`), and **Body Metrics Guidance** (`user_body_profiles` table for optional demographic inputs powering client-side metric interpretation).
 
 ## Multi-User Architecture (Friend Release)
 
@@ -726,8 +726,11 @@ A daily behaviour the user is building (or breaking). Framed via *Atomic Habits*
 | userId | TEXT | NOT NULL, FK -> users.id | Owner |
 | identity | TEXT | NOT NULL, max 200 chars | Identity statement: "I am a person who…" |
 | name | TEXT | NOT NULL, max 50 chars | Short display label for the habit |
-| cue | TEXT | nullable, max 200 chars | Implementation-intention prompt: "When X, I will…" |
+| cue | TEXT | nullable, max 200 chars | Cue text (free-text anchor for the implementation intention sentence) |
+| cueType | TEXT | nullable, enum | Structured cue category: `location \| time \| emotional_state \| other_people \| preceding_action`. Added in V2. |
 | minimumVersion | TEXT | nullable, max 200 chars | Two-minute rule minimum: "At the very least, I will…" |
+| reward | TEXT | nullable, max 200 chars | What the user feels or gets after completing the habit. Completes the Cue → Routine → Reward loop. Added in V2. |
+| isKeystone | INTEGER | NOT NULL, default 0 | 1 = user has flagged this as a keystone habit (one with cascading influence on other areas). Added in V2. |
 | color | TEXT | NOT NULL | Hex color code for the 14-day strip |
 | displayOrder | INTEGER | NOT NULL, default 0 | User-controlled sort position |
 | isArchived | INTEGER | NOT NULL, default 0 | 0 = active, 1 = archived |

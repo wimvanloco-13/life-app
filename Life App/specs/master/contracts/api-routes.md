@@ -1,6 +1,6 @@
 # API Routes Contract: Life App
 
-> Last updated: 2026-06-02. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking** (`/api/habits`, `/api/habit-logs`), **Library** (full — read-only, bookmarks, and admin CRUD), **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`), and **Body Metrics Guidance** (`GET /api/body-profile`, `PATCH /api/body-profile`). Onboarding Wizard removed.
+> Last updated: 2026-06-05. Reflects current API surface including Feature 1, Feature 2 (Activities), Feature 3 (Budget), v2 Overhaul, Goals V2 (goal hierarchy, tallies, pace tracking), Scheduler Rules (blackout dates, session patterns, activity type propagation), **training vs supplemental split (climbing phases + scheduler + apply)**, **Activities Refactoring V1** (`isLogEntry` → `createdFromLog`, schedule-to-log bridge on activity check-off, `bridgedLogAction` on un-check / delete, `linkedLogId` on activity GET, `defaultDurationMinutes` on activity types, explicit `goalId` from WorkoutLog), schedule regeneration/reset, UI Design Overhaul (cascade delete, activity summary extension), **Role Scheduling Rules Removal** (dropped scheduling fields from roles, `sessionsPerWeek` server-side clamp `[1, 7]`), **Habit Tracking V1** (`/api/habits`, `/api/habit-logs`), **Habit Tracking V2** (`reward`, `cueType`, `isKeystone` on POST/PATCH `/api/habits`), **Library** (full — read-only, bookmarks, and admin CRUD), **Budget Expansion** (extended `GET /api/budget/summary`, extended `GET/PATCH /api/budget-settings`, extended `PATCH /api/spending-categories/:id`, new `/api/moment-logs` and `/api/moment-logs/:id`), and **Body Metrics Guidance** (`GET /api/body-profile`, `PATCH /api/body-profile`). Onboarding Wizard removed.
 
 All API routes use Next.js Route Handlers. Base URL: `http://localhost:3000/api`
 
@@ -523,7 +523,7 @@ Reorder all roles.
 
 ## Habits
 
-Habits represent daily behaviours the user is building, framed using *Atomic Habits* identity language. Phase 1 (foundation) is merged; the UI ships in Phase 2.
+Habits represent daily behaviours the user is building, framed using *Atomic Habits* (V1) and *The Power of Habit* (V2) identity language. V2 added `reward`, `cueType`, and `isKeystone` fields to complete the habit loop.
 
 ### GET /api/habits
 
@@ -539,8 +539,11 @@ Add `?archived=true` to return archived habits instead (same shape).
     "userId": "abc123",
     "identity": "I am a person who moves their body every day",
     "name": "Morning run",
-    "cue": "After I wake up and brew coffee",
+    "cue": "After I make coffee",
+    "cueType": "time",
     "minimumVersion": "Put on running shoes and walk to the end of the street",
+    "reward": "calm, energised",
+    "isKeystone": false,
     "color": "#10B981",
     "displayOrder": 0,
     "isArchived": false,
@@ -560,8 +563,11 @@ Create a new habit. `displayOrder` is server-computed (`max + 1` across all habi
 {
   "identity": "I am a person who moves their body every day",
   "name": "Morning run",
-  "cue": "After I wake up and brew coffee",
+  "cue": "After I make coffee",
+  "cueType": "time",
   "minimumVersion": "Put on running shoes and walk to the end of the street",
+  "reward": "calm, energised",
+  "isKeystone": false,
   "color": "#10B981"
 }
 ```
@@ -571,14 +577,17 @@ Create a new habit. `displayOrder` is server-computed (`max + 1` across all habi
 | `identity` | Yes | 1-200 chars |
 | `name` | Yes | 1-50 chars |
 | `cue` | No | 0-200 chars, nullable |
+| `cueType` | No | One of `location \| time \| emotional_state \| other_people \| preceding_action`, or null. Returns 400 on unrecognised value. |
 | `minimumVersion` | No | 0-200 chars, nullable |
+| `reward` | No | 0-200 chars, nullable. Empty string stored as NULL. |
+| `isKeystone` | No | Boolean, defaults to false |
 | `color` | Yes | Valid hex `#RRGGBB` |
 
 **Response** `201`: The created habit object (without `recentLogDates` — use `GET /api/habits` for the full wire shape).
 
 ### PATCH /api/habits/:id
 
-Partial update. Accepts any subset of `identity`, `name`, `cue`, `minimumVersion`, `color`, `isArchived`, `displayOrder`. Same per-field validation as POST. Returns `404` if the habit does not exist for the authenticated user (never `403` — do not reveal existence to other users).
+Partial update. Accepts any subset of `identity`, `name`, `cue`, `cueType`, `minimumVersion`, `reward`, `isKeystone`, `color`, `isArchived`, `displayOrder`. Same per-field validation as POST. Returns `404` if the habit does not exist for the authenticated user (never `403` — do not reveal existence to other users).
 
 **Response** `200`: The updated habit row.
 

@@ -22,7 +22,8 @@
 10. [Goal Progress Sessions Fix](#10-goal-progress-sessions-fix)
 11. [Training / Supplemental Session Split](#11-training--supplemental-session-split)
 12. [Habit Tracking](#12-habit-tracking)
-13. [Body Metrics Guidance](#13-body-metrics-guidance)
+13. [Habit Tracking V2](#13-habit-tracking-v2)
+14. [Body Metrics Guidance](#14-body-metrics-guidance)
 
 ---
 
@@ -347,7 +348,42 @@ Lightweight daily habit tracking using an identity-first frame from *Atomic Habi
 
 ---
 
-## 13. Body Metrics Guidance
+## 13. Habit Tracking V2
+
+**Spec**: `feature requests/habit-tracking-v2/spec.md`
+**Status**: Built (PRs #59–#60 merged)
+**Feature ID**: `habit-tracking-v2`
+
+Extends Habit Tracking V1 with principles from *The Power of Habit* (Duhigg). Adds the full habit loop (Cue → Routine → Reward), structured cue categories, keystone habit flagging, implementation intention sentences, a "never miss twice" nudge, and two new editorial blocks.
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|---|---|
+| `cue_type` is a five-value enum stored as `TEXT` | Mirrors existing `TEXT` enum pattern (`horizon`, `session_type`); no need for a join table |
+| Implementation intention hidden when `cue` text is empty (regardless of `cue_type`) | Prevents generating a sentence fragment ("When , I will…"); `cueType` alone is insufficient |
+| Reward field only in walkthrough (step 5) and edit modal — not in quick-add | Quick-add is optimised for speed; reward is a deeper reflection step |
+| `isKeystone` boolean in all three form surfaces (quick-add, walkthrough review, edit) | Keystone flag is a quick binary decision the user may want to set upfront |
+| Keystone rendered as `Lucide <Gem />` icon inline with habit name | Gem is the most semantically fitting Lucide icon; differentiates visually without adding a full badge |
+| Never-miss-twice nudge fires when yesterday had no log but any of the prior 13 days did | "Loose" interpretation of the rule: one miss detected in a 14-day window, not specifically yesterday |
+| Affirmation takes priority over nudge in the inline feedback slot | Two messages at once would be noisy; affirmation is earned, nudge is preventive |
+| Date arithmetic anchored to UTC noon (`YYYY-MM-DDT12:00:00Z`) | Prevents timezone and DST off-by-one errors in `shouldShowNeverMissTwice` |
+| Editorial section collapsible via `localStorage` keyed by `userId` | Prevents section state from leaking across users on the same device |
+| `userId` sourced from `auth()` in server component (`habits/page.tsx`) | `HabitPrinciples` needs a stable ID before client hydration; avoids `useSession()` flash |
+
+### Technical Footprint
+
+**Tables modified**: `habits` — added `reward TEXT`, `cue_type TEXT`, `is_keystone INTEGER NOT NULL DEFAULT 0`
+
+**New files**: `src/lib/habit-v2-helpers.ts` (pure helpers: `buildImplementationIntention`, `shouldShowNeverMissTwice`), `src/lib/__tests__/habit-v2-helpers.test.ts` (15 unit tests)
+
+**Modified files**: `src/db/schema.ts`, `src/types/index.ts` (new fields + `CUE_TYPE_LABELS` constant + `CueType` type), `src/app/api/habits/route.ts`, `src/app/api/habits/[id]/route.ts`, `src/components/habits/habit-form.tsx`, `src/components/habits/habit-row.tsx`, `src/components/habits/habit-principles.tsx`, `src/components/habits/habit-list.tsx`, `src/app/habits/page.tsx`
+
+**Test files updated**: `src/components/habits/__tests__/habit-form.test.tsx` (walkthrough step count 5 → 6)
+
+---
+
+## 14. Body Metrics Guidance
 
 **Spec**: `feature requests/body-metrics-guidance/spec.md`
 **Status**: Built (PRs #52–#55 merged; PR #56 small UI reorder also merged)
