@@ -280,6 +280,18 @@ export function ActivityForm({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="act-notes">Notes (optional)</Label>
+            <Textarea
+              id="act-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Any extra details..."
+              rows={4}
+              className="max-h-[240px] overflow-y-auto text-[13px] leading-relaxed"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label>Role (optional)</Label>
             <Select
               value={roleId}
@@ -388,18 +400,6 @@ export function ActivityForm({
               </p>
             </div>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor="act-notes">Notes (optional)</Label>
-            <Textarea
-              id="act-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Any extra details..."
-              rows={4}
-              className="max-h-[240px] overflow-y-auto text-[13px] leading-relaxed"
-            />
-          </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
