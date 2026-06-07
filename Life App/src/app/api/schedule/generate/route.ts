@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id;
 
     const body = await request.json();
-    const { weekStartDate, scope = "week", regenerate = false, month, startDate } = body;
+    const { weekStartDate, scope = "week", regenerate = false, month, startDate, endDate } = body;
 
     if (!weekStartDate) return NextResponse.json({ error: "weekStartDate is required" }, { status: 400 });
 
@@ -162,11 +162,26 @@ export async function POST(request: NextRequest) {
       getSettings(userId),
     ]);
 
-    const dates = scope === "month" ? getMonthDateRange(monthFirstDay) : getDateRange(weekStartDate, 7);
+    // When endDate is provided for a month-scope request, build the date array to span
+    // monthFirstDay → endDate (potentially multi-month). Use UTC-noon arithmetic to avoid DST drift.
+    let dates: string[];
+    if (scope === "month" && endDate) {
+      const days = Math.round(
+        (new Date(endDate + "T12:00:00Z").getTime() - new Date(monthFirstDay + "T12:00:00Z").getTime()) /
+          (24 * 60 * 60 * 1000)
+      ) + 1;
+      dates = getDateRange(monthFirstDay, Math.max(1, days));
+    } else {
+      dates = scope === "month" ? getMonthDateRange(monthFirstDay) : getDateRange(weekStartDate, 7);
+    }
 
     // Clip the working date range so no activity is proposed before startDate.
-    // startDate only raises the floor — the ceiling (end of month) is unchanged.
     const effectiveDates = startDate ? dates.filter((d) => d >= startDate) : dates;
+
+    // Validate endDate after effectiveDates is derived so the check uses the real floor.
+    if (endDate && endDate < (effectiveDates[0] ?? monthFirstDay)) {
+      return NextResponse.json({ error: "endDate must be on or after startDate" }, { status: 400 });
+    }
 
     const allActivities = await db.select().from(activities).where(eq(activities.userId, userId));
     let scopeActivities = allActivities.filter((a) => effectiveDates.includes(a.activityDate));
@@ -270,7 +285,7 @@ export async function POST(request: NextRequest) {
       ...proposal,
       regenerate,
       focusGoalIds: regenerate ? goalIds : [],
-      dateRange: regenerate ? { start: effectiveDates[0] ?? dates[0], end: effectiveDates[effectiveDates.length - 1] ?? dates[dates.length - 1] } : null,
+      dateRange: regenerate ? { start: effectiveDates[0] ?? dates[0], end: endDate ?? (effectiveDates[effectiveDates.length - 1] ?? dates[dates.length - 1]) } : null,
     });
   } catch (error) {
     return NextResponse.json({ error: "Failed to generate schedule", details: String(error) }, { status: 500 });
