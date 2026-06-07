@@ -4,7 +4,7 @@
 >
 > **What this is NOT**: a concatenation of all specs. Aggregating 4,000+ lines of user stories here would make this file harder to navigate than reading the individual files. Keep heavy detail there; keep decisions here.
 >
-> **Last updated**: 2026-06-04. Covers all features through Body Metrics Guidance (PRs #52–#56).
+> **Last updated**: 2026-06-07. Covers all features through Planning / Execution Redesign (PRs #64–#66).
 
 ---
 
@@ -24,6 +24,7 @@
 12. [Habit Tracking](#12-habit-tracking)
 13. [Habit Tracking V2](#13-habit-tracking-v2)
 14. [Body Metrics Guidance](#14-body-metrics-guidance)
+15. [Planning / Execution Redesign](#15-planning--execution-redesign)
 
 ---
 
@@ -416,3 +417,43 @@ Adds an interpretation layer to the existing Body Metrics tab. Two additions: an
 **Key library**: `src/lib/body-metrics-guidance.ts` (new) — exports `interpretWeight`, `interpretVo2max`, `interpretRestingHr`
 
 **Components**: `body-metrics-feedback.tsx` (new), `body-metrics-view.tsx` (modified)
+
+---
+
+## 15. Planning / Execution Redesign
+
+**Spec**: `feature requests/planning-execution-redesign/spec.md`
+**Status**: Built (PRs #64–#66 merged)
+**Feature ID**: `planning-execution-redesign`
+
+Four improvements to the planning and execution surface. No new database tables or columns.
+
+### What was built
+
+| Item | Description |
+|------|-------------|
+| Navigation restructure | "Daily Focus" sidebar group replaced with "Execution" (Today, This Week) and "Planning" (Monthly Plan) groups |
+| This Week view (`/this-week`) | New page showing 7-day execution view (Mon–Sun) of the current week. Reuses `DayColumn` unchanged. Week navigation, Generate Schedule button, View Monthly Plan link, focus goals count. |
+| Phase-aware scheduling (`endDate`) | `POST /api/schedule/generate` accepts optional `startDate` (existing) and new `endDate`. When `endDate` is provided, the scheduling window spans `effectiveDates[0]` → `endDate` inclusive, supporting multi-month phase blocks. |
+| SchedulePreferencesDialog enhancements | "Schedule through" end-date field; per-goal active phase label ("Active: Strength — Week N of M"); session sufficiency advisory warnings (tier-1 for 1 session/week, tier-2 for 2 sessions/week) for goals with a training plan. |
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|---|---|
+| `/this-week` is a viewport over `activities`, not a separate data model | No schema change; same data, different slice |
+| `DayColumn` reused without modification | NFR-1: completed-activity rendering (0.5 opacity, checkmark, line-through) was already built in |
+| Session warning is advisory only | Preserves user agency; does not block generation |
+| `endDate` default = `phase.startDate + durationWeeks × 7` (not `dialog.startDate + durationWeeks × 7`) | Ensures the active phase is fully covered regardless of when the user opens the dialog mid-phase |
+| `trainingPlanMinimums` derived at mount as a prop, no new API | Data already loaded; client-side computation avoids an extra network round-trip |
+| `relaxStartDateMax` prop on dialog | Keeps the monthly view's start-date ceiling intact while removing it for the `/this-week` trigger |
+
+### Technical Footprint
+
+**No new tables or columns.**
+
+**Modified routes**: `POST /api/schedule/generate` (endDate), `PATCH /api/goals/:id` (hotfix: array serialization for preferredDays)
+
+**New files**: `src/app/this-week/page.tsx`, `src/components/monthly-plan/this-week-view.tsx`
+
+**Modified files**: `src/components/layout/app-sidebar.tsx`, `src/components/monthly-plan/schedule-preferences-dialog.tsx`, `src/components/monthly-plan/weekly-plan-view.tsx`

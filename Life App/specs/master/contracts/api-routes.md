@@ -830,6 +830,8 @@ Generate a proposed schedule based on focus goals, existing activities, recurrin
 | `scope` | No | `"week"` (default) or `"month"` |
 | `regenerate` | No | When `true`, ignores existing scheduler-generated activities for focus goals so the schedule is built from scratch. Default `false`. |
 | `month` | No | `"YYYY-MM"` format. Used when `scope = "month"` to ensure the correct calendar month is targeted, regardless of which day-of-week the 1st falls on. |
+| `startDate` | No | `"YYYY-MM-DD"`. When provided, no activities are scheduled before this date. Raises the lower bound of the scheduling window. |
+| `endDate` | No | `"YYYY-MM-DD"`. When provided, overrides the calendar-month ceiling and extends (or shortens) the scheduling window through this date inclusive. Supports multi-month ranges. Must be ≥ `startDate`; returns `400` otherwise. Omitting preserves existing behaviour (month-end ceiling). |
 
 **Response** `200`:
 ```json

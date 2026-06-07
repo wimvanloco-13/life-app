@@ -104,6 +104,7 @@ These are the rules for working on this project. They come from the constitution
 | Habit Tracking | Built |
 | Habit Tracking V2 (habit loop, cue types, keystone, nudge, editorial) | Built |
 | Body Metrics Guidance (interpretation, About You, edit/delete log) | Built |
+| Planning / Execution Redesign (This Week view, Execution/Planning nav, phase-aware scheduling, session warning) | Built |
 | First-Time Onboarding Wizard | Removed |
 
 **Infrastructure & overhauls:**
