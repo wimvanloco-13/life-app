@@ -65,7 +65,11 @@ export async function PATCH(
   if (body.horizon !== undefined) updates.horizon = body.horizon || null;
   if (body.parentGoalId !== undefined) updates.parentGoalId = body.parentGoalId;
   if (body.month !== undefined) updates.month = body.month || null;
-  if (body.preferredDays !== undefined) updates.preferredDays = body.preferredDays || null;
+  if (body.preferredDays !== undefined) {
+    updates.preferredDays = Array.isArray(body.preferredDays)
+      ? JSON.stringify(body.preferredDays)
+      : (body.preferredDays || null);
+  }
   if (body.preferredTimeSlot !== undefined) updates.preferredTimeSlot = body.preferredTimeSlot || null;
   if (body.isCompleted !== undefined) {
     updates.isCompleted = Boolean(body.isCompleted);
