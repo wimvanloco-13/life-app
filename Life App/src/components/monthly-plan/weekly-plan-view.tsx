@@ -26,6 +26,7 @@ import {
   type BridgedLogAction,
 } from "@/components/activities/linked-log-action-dialog";
 import { getWeekStartDate, getWeekDates } from "@/lib/dates";
+import { getPhaseDisplayName } from "@/lib/training/periodization";
 import {
   getSessionTypeCardClasses,
   shouldShowSupplementalBadge,
@@ -165,7 +166,7 @@ export function WeeklyPlanView() {
           : null;
         if (activePhase) {
           phaseInfoMap[goalIds[i]] = {
-            phaseName: activePhase.phaseType,
+            phaseName: getPhaseDisplayName(activePhase.phaseType),
             phaseStartDate: activePhase.startDate,
             durationWeeks: activePhase.durationWeeks,
           };
