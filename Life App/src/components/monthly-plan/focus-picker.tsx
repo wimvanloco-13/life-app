@@ -82,12 +82,14 @@ export function FocusPicker({
     return true;
   });
 
-  const goalsByRole = roles
-    .filter((r) => visibleGoals.some((g) => g.roles.some((gr) => gr.id === r.id)))
-    .map((r) => ({
-      role: r,
-      goals: visibleGoals.filter((g) => g.roles.some((gr) => gr.id === r.id)),
-    }));
+  // Sort: selected goals first (alphabetical), then unselected (alphabetical).
+  // Goals with no role are now included — they were previously invisible under role headings.
+  const sortedGoals = [...visibleGoals].sort((a, b) => {
+    const aSelected = selected.has(a.id) ? 0 : 1;
+    const bSelected = selected.has(b.id) ? 0 : 1;
+    if (aSelected !== bSelected) return aSelected - bSelected;
+    return a.title.localeCompare(b.title);
+  });
 
   const added = [...selected].filter((id) => !currentFocusIds.includes(id));
   const removed = currentFocusIds.filter((id) => !selected.has(id));
@@ -114,73 +116,52 @@ export function FocusPicker({
             </Button>
           </div>
         ) : (
-          <div className="space-y-5">
-            {goalsByRole.map(({ role, goals: roleGoals }) => (
-              <div key={role.id}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div
-                    className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: role.color }}
-                  />
-                  <h4 className="text-sm font-semibold">{role.name}</h4>
-                </div>
-                <div className="space-y-2 pl-5">
-                  {roleGoals.map((goal) => {
-                    const quadrant = getQuadrantInfo(goal.quadrant);
-                    const isSelected = selected.has(goal.id);
+          <div className="space-y-2">
+            {sortedGoals.map((goal) => {
+                const quadrant = getQuadrantInfo(goal.quadrant);
+                const isSelected = selected.has(goal.id);
 
-                    return (
-                      <div
-                        key={goal.id}
-                        className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                          isSelected
-                            ? "border-primary bg-primary/5"
-                            : "hover:bg-accent/50"
-                        }`}
-                        onClick={() => toggle(goal.id)}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggle(goal.id)}
-                          className="mt-0.5"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium">
-                            {goal.title}
-                          </div>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {goal.roles.map((r) => (
-                              <RoleBadge key={r.id} name={r.name} color={r.color} />
-                            ))}
-                            <span
-                              className="text-xs px-1.5 py-0.5 rounded"
-                              style={{
-                                backgroundColor: `${quadrant.hexColor}20`,
-                                color: quadrant.hexColor,
-                              }}
-                            >
-                              {quadrant.shortLabel}
-                            </span>
-                            {goal.targetDate && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs"
-                              >
-                                <Calendar className="mr-1 h-3 w-3" />
-                                {format(
-                                  new Date(goal.targetDate + "T00:00:00"),
-                                  "MMM d"
-                                )}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
+                return (
+                  <div
+                    key={goal.id}
+                    className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-accent/50"
+                    }`}
+                    onClick={() => toggle(goal.id)}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => toggle(goal.id)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium">{goal.title}</div>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {goal.roles.map((r) => (
+                          <RoleBadge key={r.id} name={r.name} color={r.color} />
+                        ))}
+                        <span
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{
+                            backgroundColor: `${quadrant.hexColor}20`,
+                            color: quadrant.hexColor,
+                          }}
+                        >
+                          {quadrant.shortLabel}
+                        </span>
+                        {goal.targetDate && (
+                          <Badge variant="outline" className="text-xs">
+                            <Calendar className="mr-1 h-3 w-3" />
+                            {format(new Date(goal.targetDate + "T00:00:00"), "MMM d")}
+                          </Badge>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                    </div>
+                  </div>
+                );
+              })}
           </div>
         )}
 

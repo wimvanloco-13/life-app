@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { goals, goalRoles, roles } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { goals, goalRoles, roles, activities, weeklyFocusGoals, trainingPlans } from "@/db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { deriveQuadrant } from "@/lib/quadrants";
 import { auth } from "@/lib/auth";
 import { clampSessionsPerWeek } from "@/lib/goal-validation";
@@ -114,6 +114,33 @@ export async function DELETE(
   if (existing.length === 0) return NextResponse.json({ error: "Goal not found" }, { status: 404 });
 
   const childGoals = await db.select({ id: goals.id }).from(goals).where(and(eq(goals.parentGoalId, goalId), eq(goals.userId, userId)));
+  const childGoalIds = childGoals.map((c) => c.id);
+  const allGoalIds = [goalId, ...childGoalIds];
+
+  // Delete uncompleted, scheduler-generated activities for this goal and its children.
+  // Completed activities and log-created activities are kept as historical records.
+  await db.delete(activities).where(
+    and(
+      inArray(activities.goalId, allGoalIds),
+      eq(activities.isCompleted, false),
+      eq(activities.createdFromLog, false),
+      eq(activities.userId, userId)
+    )
+  );
+
+  // Remove from all weekly focus lists (goalId is already user-verified above).
+  await db.delete(weeklyFocusGoals).where(
+    inArray(weeklyFocusGoals.goalId, allGoalIds)
+  );
+
+  // Delete training plans (training phases cascade via FK defined in apply-schema.js).
+  await db.delete(trainingPlans).where(
+    and(
+      inArray(trainingPlans.goalId, allGoalIds),
+      eq(trainingPlans.userId, userId)
+    )
+  );
+
   for (const child of childGoals) {
     await db.delete(goalRoles).where(eq(goalRoles.goalId, child.id));
     await db.delete(goals).where(and(eq(goals.id, child.id), eq(goals.userId, userId)));
