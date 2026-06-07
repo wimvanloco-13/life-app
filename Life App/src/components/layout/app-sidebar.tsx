@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
   Sun,
   CalendarDays,
+  CalendarRange,
   Activity,
   Wallet,
   Mountain,
@@ -57,9 +58,15 @@ const LIBRARY_TOPICS: NavItem[] = [
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Daily Focus",
+    label: "Execution",
     items: [
       { title: "Today", href: "/today", icon: Sun },
+      { title: "This Week", href: "/this-week", icon: CalendarRange },
+    ],
+  },
+  {
+    label: "Planning",
+    items: [
       { title: "Monthly Plan", href: "/monthly-plan", icon: CalendarDays },
     ],
   },
