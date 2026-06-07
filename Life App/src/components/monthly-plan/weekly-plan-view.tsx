@@ -17,7 +17,6 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DayColumn } from "./day-column";
 import { ActivityForm } from "./activity-form";
-import { SchedulePreview } from "./schedule-preview";
 import { SchedulePreferencesDialog, type GoalPatch } from "./schedule-preferences-dialog";
 import { RecurringManager } from "./recurring-manager";
 import { FocusPicker } from "./focus-picker";
@@ -360,7 +359,7 @@ export function WeeklyPlanView() {
     try {
       // 1. Patch modified goal preferences in parallel.
       if (patches.length > 0) {
-        await Promise.all(
+        const patchResults = await Promise.all(
           patches.map(({ id, prefs }) =>
             fetch(`/api/goals/${id}`, {
               method: "PATCH",
@@ -369,6 +368,9 @@ export function WeeklyPlanView() {
             })
           )
         );
+        if (patchResults.some((r) => !r.ok)) {
+          throw new Error("Failed to update goal preferences. Please try again.");
+        }
       }
 
       // 2. Generate.
