@@ -118,50 +118,50 @@ export function FocusPicker({
         ) : (
           <div className="space-y-2">
             {sortedGoals.map((goal) => {
-                const quadrant = getQuadrantInfo(goal.quadrant);
-                const isSelected = selected.has(goal.id);
+              const quadrant = getQuadrantInfo(goal.quadrant);
+              const isSelected = selected.has(goal.id);
 
-                return (
-                  <div
-                    key={goal.id}
-                    className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                      isSelected
-                        ? "border-primary bg-primary/5"
-                        : "hover:bg-accent/50"
-                    }`}
-                    onClick={() => toggle(goal.id)}
-                  >
-                    <Checkbox
-                      checked={isSelected}
-                      onCheckedChange={() => toggle(goal.id)}
-                      className="mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{goal.title}</div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        {goal.roles.map((r) => (
-                          <RoleBadge key={r.id} name={r.name} color={r.color} />
-                        ))}
-                        <span
-                          className="text-xs px-1.5 py-0.5 rounded"
-                          style={{
-                            backgroundColor: `${quadrant.hexColor}20`,
-                            color: quadrant.hexColor,
-                          }}
-                        >
-                          {quadrant.shortLabel}
-                        </span>
-                        {goal.targetDate && (
-                          <Badge variant="outline" className="text-xs">
-                            <Calendar className="mr-1 h-3 w-3" />
-                            {format(new Date(goal.targetDate + "T00:00:00"), "MMM d")}
-                          </Badge>
-                        )}
-                      </div>
+              return (
+                <div
+                  key={goal.id}
+                  className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-accent/50"
+                  }`}
+                  onClick={() => toggle(goal.id)}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggle(goal.id)}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">{goal.title}</div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {goal.roles.map((r) => (
+                        <RoleBadge key={r.id} name={r.name} color={r.color} />
+                      ))}
+                      <span
+                        className="text-xs px-1.5 py-0.5 rounded"
+                        style={{
+                          backgroundColor: `${quadrant.hexColor}20`,
+                          color: quadrant.hexColor,
+                        }}
+                      >
+                        {quadrant.shortLabel}
+                      </span>
+                      {goal.targetDate && (
+                        <Badge variant="outline" className="text-xs">
+                          <Calendar className="mr-1 h-3 w-3" />
+                          {format(new Date(goal.targetDate + "T00:00:00"), "MMM d")}
+                        </Badge>
+                      )}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
           </div>
         )}
 

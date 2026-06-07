@@ -100,7 +100,7 @@ The existing `SchedulePreview` component is retired from the generate flow. The 
 | `src/app/api/goals/[id]/route.ts` | DELETE handler: also delete uncompleted activities and weeklyFocusGoals for the goal and its children |
 | `src/app/api/schedule/generate/route.ts` | Accept optional `startDate`; clip date range floor |
 | `src/components/monthly-plan/focus-picker.tsx` | Replace role-grouped layout with flat alphabetical list |
-| `src/components/monthly-plan/activity-form.tsx` | Move Notes field to position 2 |
+| `src/components/monthly-plan/activity-form.tsx` | Move Notes field to position 3 |
 | `src/components/monthly-plan/schedule-preferences-dialog.tsx` | New component: pre-generate dialog with start date + goal preference cards |
 | `src/components/monthly-plan/weekly-plan-view.tsx` | Wire "Generate Schedule" to new preferences dialog; chain generate + apply automatically |
 

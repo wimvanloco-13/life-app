@@ -17,7 +17,7 @@ import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DayColumn } from "./day-column";
 import { ActivityForm } from "./activity-form";
-import { SchedulePreview } from "./schedule-preview";
+import { SchedulePreferencesDialog, type GoalPatch } from "./schedule-preferences-dialog";
 import { RecurringManager } from "./recurring-manager";
 import { FocusPicker } from "./focus-picker";
 import { SchedulerSettingsDialog } from "./scheduler-settings-dialog";
@@ -64,15 +64,10 @@ export function WeeklyPlanView() {
 
   const [recurringOpen, setRecurringOpen] = useState(false);
 
-  const [scheduleProposal, setScheduleProposal] = useState<ScheduleProposal | null>(null);
-  const [regenerateMetadata, setRegenerateMetadata] = useState<{
-    focusGoalIds: number[];
-    dateRange: { start: string; end: string };
-  } | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [applying, setApplying] = useState(false);
-
+  const [prefsDialogOpen, setPrefsDialogOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [prefsError, setPrefsError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [focusPickerOpen, setFocusPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -349,37 +344,77 @@ export function WeeklyPlanView() {
     setActivityFormOpen(true);
   }
 
-  async function handleGenerateSchedule() {
+  function handleGenerateSchedule() {
     if (focusGoals.length === 0) {
       setFocusPickerOpen(true);
       return;
     }
+    setPrefsError(null);
+    setSuccessMessage(null);
+    setPrefsDialogOpen(true);
+  }
 
-    setGenerating(true);
+  async function handleConfirmGenerate(startDate: string, patches: GoalPatch[]) {
+    setConfirming(true);
     try {
+      // 1. Patch modified goal preferences in parallel.
+      if (patches.length > 0) {
+        const patchResults = await Promise.all(
+          patches.map(({ id, prefs }) =>
+            fetch(`/api/goals/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(prefs),
+            })
+          )
+        );
+        if (patchResults.some((r) => !r.ok)) {
+          throw new Error("Failed to update goal preferences. Please try again.");
+        }
+      }
+
+      // 2. Generate.
       const ws = getWeekStartDate(new Date(currentMonth + "-01T00:00:00"));
-      const res = await fetch("/api/schedule/generate", {
+      const genRes = await fetch("/api/schedule/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weekStartDate: ws, scope: "month", regenerate: true, month: currentMonth }),
+        body: JSON.stringify({
+          weekStartDate: ws,
+          scope: "month",
+          regenerate: true,
+          month: currentMonth,
+          startDate,
+        }),
       });
-      if (!res.ok) {
-        // generation failed — proposal stays empty, button re-enables
-      } else {
-        const data = await res.json();
-        const { focusGoalIds, dateRange, regenerate, ...proposal } = data;
-        setScheduleProposal(proposal as ScheduleProposal);
-        if (regenerate) {
-          setRegenerateMetadata({ focusGoalIds, dateRange });
-        } else {
-          setRegenerateMetadata(null);
-        }
-        setPreviewOpen(true);
-      }
-    } catch {
-      // generation failed — proposal stays empty, button re-enables
+      if (!genRes.ok) throw new Error("Failed to generate schedule. Please try again.");
+      const data = await genRes.json();
+      const { focusGoalIds, dateRange, regenerate, ...proposal } = data;
+
+      // 3. Apply.
+      const applyRes = await fetch("/api/schedule/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activities: (proposal as ScheduleProposal).activities,
+          regenerate: true,
+          focusGoalIds,
+          dateRange,
+        }),
+      });
+      if (!applyRes.ok) throw new Error("Failed to apply schedule. Please try again.");
+
+      // 4. Close, refresh, and show success banner.
+      setPrefsDialogOpen(false);
+      const count = (proposal as ScheduleProposal).activities?.length ?? 0;
+      setSuccessMessage(`Scheduled ${count} ${count === 1 ? "activity" : "activities"}`);
+      setTimeout(() => setSuccessMessage(null), 4000);
+      await fetchAll();
+      fetchMonthActivities();
+    } catch (err) {
+      setPrefsError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setConfirming(false);
     }
-    setGenerating(false);
   }
 
   async function handleResetSchedule() {
@@ -404,36 +439,6 @@ export function WeeklyPlanView() {
     fetchMonthActivities();
   }
 
-  async function handleApplySchedule() {
-    if (!scheduleProposal) return;
-    setApplying(true);
-    try {
-      const res = await fetch("/api/schedule/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          activities: scheduleProposal.activities,
-          regenerate: !!regenerateMetadata,
-          focusGoalIds: regenerateMetadata?.focusGoalIds ?? [],
-          dateRange: regenerateMetadata?.dateRange ?? null,
-        }),
-      });
-      if (!res.ok) {
-        alert("Failed to apply schedule. Please try again.");
-        return;
-      }
-    } catch {
-      alert("Failed to apply schedule. Please try again.");
-      return;
-    } finally {
-      setApplying(false);
-    }
-    setPreviewOpen(false);
-    setScheduleProposal(null);
-    setRegenerateMetadata(null);
-    await fetchAll();
-    fetchMonthActivities();
-  }
 
   // Month view: generate all weeks in the month
   const currentDate = new Date(currentMonth + "-01T00:00:00");
@@ -569,13 +574,19 @@ export function WeeklyPlanView() {
           <Button
             size="sm"
             onClick={handleGenerateSchedule}
-            disabled={generating}
+            disabled={confirming}
           >
             <Sparkles className="mr-1.5 h-4 w-4" />
-            {generating ? "Generating..." : "Generate Schedule"}
+            Generate Schedule
           </Button>
         </div>
       </div>
+
+      {successMessage && (
+        <div className="mb-2 rounded-md bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-4 py-2 text-sm text-green-800 dark:text-green-300">
+          {successMessage}
+        </div>
+      )}
 
       <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto -mx-2 px-2">
@@ -692,17 +703,14 @@ export function WeeklyPlanView() {
         defaultStartTime={defaultStartTime}
       />
 
-      <SchedulePreview
-        open={previewOpen}
-        onClose={() => {
-          setPreviewOpen(false);
-          setScheduleProposal(null);
-          setRegenerateMetadata(null);
-        }}
-        onApply={handleApplySchedule}
-        proposal={scheduleProposal}
-        applying={applying}
-        isRegenerate={!!regenerateMetadata}
+      <SchedulePreferencesDialog
+        open={prefsDialogOpen}
+        onClose={() => setPrefsDialogOpen(false)}
+        focusGoals={focusGoals}
+        currentMonth={currentMonth}
+        onConfirm={handleConfirmGenerate}
+        confirming={confirming}
+        error={prefsError ?? undefined}
       />
 
       <SchedulerSettingsDialog
