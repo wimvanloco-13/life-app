@@ -184,8 +184,7 @@ The sessions-per-week input is on the same card, immediately above the warning �
 | File | Change |
 |------|--------|
 | `src/components/layout/app-sidebar.tsx` | Rename "Daily Focus" → "Execution"; add "This Week" item (`/this-week`); add "Planning" group with Monthly Plan |
-| `src/app/this-week/page.tsx` | New page — server component, fetches current week's activities, renders `ThisWeekView` |
-| `src/app/this-week/page.tsx` | New Next.js page file — thin server component that renders `ThisWeekView` |
+| `src/app/this-week/page.tsx` | New page — thin server component that renders `ThisWeekView` |
 | `src/components/monthly-plan/this-week-view.tsx` | New client component — week navigation, DayColumn per day, Generate Schedule button, View Monthly Plan link |
 | `src/app/api/schedule/generate/route.ts` | Accept optional `endDate`; build date range from `effectiveDates[0]` → `endDate` when provided; handle multi-month spans |
 | `src/components/monthly-plan/schedule-preferences-dialog.tsx` | Add "Schedule through" date field; add active phase display on goal cards; add session sufficiency warning; accept `trainingPlanMinimums` prop |

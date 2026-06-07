@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sparkles, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { format, addWeeks, subWeeks, parseISO } from "date-fns";
 import { getWeekStartDate, getWeekDates } from "@/lib/dates";
+import { getPhaseDisplayName } from "@/lib/training/periodization";
 import { DayColumn } from "./day-column";
 import { ActivityForm } from "./activity-form";
 import { SchedulePreferencesDialog, type GoalPatch } from "./schedule-preferences-dialog";
@@ -70,10 +72,11 @@ export function ThisWeekView() {
     Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
   >({});
 
-  const currentMonth = useMemo(
-    () => format(parseISO(currentWeekMonday), "yyyy-MM"),
-    [currentWeekMonday]
-  );
+  // Anchored to today — not the displayed week — so that generating from
+  // /this-week always targets the current month even when the user has
+  // navigated forward or backward to a different week.
+  const currentMonth = useMemo(() => format(new Date(), "yyyy-MM"), []);
+  const router = useRouter();
 
   const weekDates = useMemo(() => getWeekDates(currentWeekMonday), [currentWeekMonday]);
 
@@ -118,7 +121,7 @@ export function ThisWeekView() {
           : null;
         if (activePhase) {
           phaseInfoMap[goalIds[i]] = {
-            phaseName: activePhase.phaseType,
+            phaseName: getPhaseDisplayName(activePhase.phaseType),
             phaseStartDate: activePhase.startDate,
             durationWeeks: activePhase.durationWeeks,
           };
@@ -243,6 +246,10 @@ export function ThisWeekView() {
   }
 
   function handleGenerateSchedule() {
+    if (focusGoals.length === 0) {
+      router.push("/monthly-plan");
+      return;
+    }
     setPrefsError(null);
     setSuccessMessage(null);
     setPrefsDialogOpen(true);
