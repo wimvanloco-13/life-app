@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,6 +26,7 @@ import {
   type BridgedLogAction,
 } from "@/components/activities/linked-log-action-dialog";
 import { getWeekStartDate, getWeekDates } from "@/lib/dates";
+import { getPhaseDisplayName } from "@/lib/training/periodization";
 import {
   getSessionTypeCardClasses,
   shouldShowSupplementalBadge,
@@ -73,6 +74,14 @@ export function WeeklyPlanView() {
 
   const [draggingActivity, setDraggingActivity] = useState<Activity | null>(null);
 
+  // Training plan data loaded at mount so the preferences dialog has it immediately.
+  const [trainingPlanData, setTrainingPlanData] = useState<
+    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }>
+  >({});
+  const [trainingPhaseInfo, setTrainingPhaseInfo] = useState<
+    Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
+  >({});
+
   // Un-check prompt state. Populated when the user clicks the checkbox to
   // un-check an activity that has a linked log; the dialog asks whether to
   // delete or unlink the log before the PATCH fires.
@@ -87,6 +96,21 @@ export function WeeklyPlanView() {
     id: number;
     title: string;
   } | null>(null);
+
+  // goal ID → minimum sessions required for a meaningful training/supplemental split.
+  // Goals without a training plan are omitted from the map.
+  const trainingPlanMinimums = useMemo<Record<number, number>>(() => {
+    const map: Record<number, number> = {};
+    for (const [idStr, plan] of Object.entries(trainingPlanData)) {
+      const id = Number(idStr);
+      if (plan.trainingSessionsPerWeek != null && plan.supplementalSessionsPerWeek != null) {
+        map[id] = plan.trainingSessionsPerWeek + plan.supplementalSessionsPerWeek;
+      } else {
+        map[id] = 3; // default split minimum
+      }
+    }
+    return map;
+  }, [trainingPlanData]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -118,6 +142,44 @@ export function WeeklyPlanView() {
     setAllGoals(allGoalsData);
     setActivities(activitiesData);
     setRecurring(recurringData);
+
+    // Fetch training plan + active phase for each focus goal in parallel.
+    const goalIds: number[] = Array.isArray(focusData) ? focusData.map((g: { id: number }) => g.id) : [];
+    if (goalIds.length > 0) {
+      const planResponses = await Promise.all(
+        goalIds.map((id) => fetch(`/api/training-plans?goalId=${id}`))
+      );
+      const planResults = await Promise.all(planResponses.map((r) => r.json()));
+
+      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }> = {};
+      const phaseInfoMap: Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }> = {};
+
+      for (let i = 0; i < goalIds.length; i++) {
+        const plan = planResults[i];
+        if (!plan) continue;
+        planDataMap[goalIds[i]] = {
+          trainingSessionsPerWeek: plan.trainingSessionsPerWeek ?? null,
+          supplementalSessionsPerWeek: plan.supplementalSessionsPerWeek ?? null,
+        };
+        const activePhase = Array.isArray(plan.phases)
+          ? plan.phases.find((p: { status: string }) => p.status === "active")
+          : null;
+        if (activePhase) {
+          phaseInfoMap[goalIds[i]] = {
+            phaseName: getPhaseDisplayName(activePhase.phaseType),
+            phaseStartDate: activePhase.startDate,
+            durationWeeks: activePhase.durationWeeks,
+          };
+        }
+      }
+
+      setTrainingPlanData(planDataMap);
+      setTrainingPhaseInfo(phaseInfoMap);
+    } else {
+      setTrainingPlanData({});
+      setTrainingPhaseInfo({});
+    }
+
     setLoading(false);
   }, [currentMonth]);
 
@@ -354,7 +416,7 @@ export function WeeklyPlanView() {
     setPrefsDialogOpen(true);
   }
 
-  async function handleConfirmGenerate(startDate: string, patches: GoalPatch[]) {
+  async function handleConfirmGenerate(startDate: string, endDate: string, patches: GoalPatch[]) {
     setConfirming(true);
     try {
       // 1. Patch modified goal preferences in parallel.
@@ -384,6 +446,7 @@ export function WeeklyPlanView() {
           regenerate: true,
           month: currentMonth,
           startDate,
+          endDate,
         }),
       });
       if (!genRes.ok) throw new Error("Failed to generate schedule. Please try again.");
@@ -711,6 +774,8 @@ export function WeeklyPlanView() {
         onConfirm={handleConfirmGenerate}
         confirming={confirming}
         error={prefsError ?? undefined}
+        trainingPlanMinimums={trainingPlanMinimums}
+        trainingPhaseInfo={trainingPhaseInfo}
       />
 
       <SchedulerSettingsDialog

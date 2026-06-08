@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import type { Goal } from "@/types";
 
 const DAYS = [
@@ -43,14 +43,23 @@ export interface GoalPatch {
   prefs: Partial<GoalPref>;
 }
 
+interface TrainingPhaseEntry {
+  phaseName: string;
+  phaseStartDate: string;
+  durationWeeks: number;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   focusGoals: Goal[];
   currentMonth: string; // "YYYY-MM"
-  onConfirm: (startDate: string, patches: GoalPatch[]) => Promise<void>;
+  onConfirm: (startDate: string, endDate: string, patches: GoalPatch[]) => Promise<void>;
   confirming: boolean;
   error?: string;
+  trainingPlanMinimums?: Record<number, number>;
+  trainingPhaseInfo?: Record<number, TrainingPhaseEntry>;
+  relaxStartDateMax?: boolean;
 }
 
 function parsePreferredDays(raw: string | null | undefined): number[] {
@@ -74,6 +83,21 @@ function getMonthLastDay(currentMonth: string): string {
   return `${currentMonth}-${String(last).padStart(2, "0")}`;
 }
 
+function addDays(isoDate: string, days: number): string {
+  const ms = new Date(isoDate + "T12:00:00Z").getTime() + days * 24 * 60 * 60 * 1000;
+  const d = new Date(ms);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+function computeWeekN(phaseStartDate: string, durationWeeks: number): number {
+  const today = new Date().toISOString().slice(0, 10);
+  const raw = Math.ceil(
+    (new Date(today + "T12:00:00Z").getTime() - new Date(phaseStartDate + "T12:00:00Z").getTime()) /
+      (7 * 24 * 60 * 60 * 1000)
+  );
+  return Math.max(1, Math.min(durationWeeks, raw));
+}
+
 export function SchedulePreferencesDialog({
   open,
   onClose,
@@ -82,14 +106,21 @@ export function SchedulePreferencesDialog({
   onConfirm,
   confirming,
   error,
+  trainingPlanMinimums = {},
+  trainingPhaseInfo = {},
+  relaxStartDateMax = false,
 }: Props) {
   const [startDate, setStartDate] = useState(() => getDefaultStartDate(currentMonth));
+  const [endDate, setEndDate] = useState(() => getMonthLastDay(currentMonth));
   const [prefs, setPrefs] = useState<Record<number, GoalPref>>({});
 
-  // Initialise state whenever the dialog opens.
+  // Initialise all state once whenever the dialog opens (NFR-3).
   useEffect(() => {
     if (!open) return;
-    setStartDate(getDefaultStartDate(currentMonth));
+
+    const defaultStart = getDefaultStartDate(currentMonth);
+    setStartDate(defaultStart);
+
     const initial: Record<number, GoalPref> = {};
     for (const g of focusGoals) {
       initial[g.id] = {
@@ -99,7 +130,20 @@ export function SchedulePreferencesDialog({
       };
     }
     setPrefs(initial);
-  }, [open, currentMonth, focusGoals]);
+
+    // Compute endDate default: latest of all per-goal suggestions.
+    // Goals with an active phase → phase end date (phase.startDate + durationWeeks*7).
+    // Goals without a phase → last day of currentMonth.
+    let latestEnd = getMonthLastDay(currentMonth);
+    for (const g of focusGoals) {
+      const phase = trainingPhaseInfo[g.id];
+      const candidate = phase
+        ? addDays(phase.phaseStartDate, phase.durationWeeks * 7)
+        : getMonthLastDay(currentMonth);
+      if (candidate > latestEnd) latestEnd = candidate;
+    }
+    setEndDate(latestEnd);
+  }, [open, currentMonth, focusGoals, trainingPhaseInfo]);
 
   function updatePref<K extends keyof GoalPref>(goalId: number, key: K, value: GoalPref[K]) {
     setPrefs((prev) => ({ ...prev, [goalId]: { ...prev[goalId], [key]: value } }));
@@ -111,8 +155,10 @@ export function SchedulePreferencesDialog({
     updatePref(goalId, "preferredDays", next.sort((a, b) => a - b));
   }
 
+  const endDateInvalid = endDate < startDate;
+
   function handleConfirm() {
-    // Compute patches — only goals whose prefs changed from the initial values.
+    if (endDateInvalid) return;
     const patches: GoalPatch[] = [];
     for (const g of focusGoals) {
       const current = prefs[g.id];
@@ -125,7 +171,7 @@ export function SchedulePreferencesDialog({
       if (current.preferredTimeSlot !== originalSlot) patch.preferredTimeSlot = current.preferredTimeSlot;
       if (Object.keys(patch).length > 0) patches.push({ id: g.id, prefs: patch });
     }
-    onConfirm(startDate, patches);
+    onConfirm(startDate, endDate, patches);
   }
 
   return (
@@ -134,35 +180,63 @@ export function SchedulePreferencesDialog({
         <DialogHeader>
           <DialogTitle>Schedule preferences</DialogTitle>
           <DialogDescription>
-            Review your goals&apos; scheduling settings and set a start date, then generate.
+            Review your goals&apos; scheduling settings and set the scheduling window, then generate.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-2">
-          {/* Start date */}
-          <div className="space-y-2">
-            <Label htmlFor="sched-start-date">Start date</Label>
-            <Input
-              id="sched-start-date"
-              type="date"
-              value={startDate}
-              min={`${currentMonth}-01`}
-              max={getMonthLastDay(currentMonth)}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-48"
-            />
-            <p className="text-xs text-muted-foreground">
-              No activities will be scheduled before this date.
-            </p>
+          {/* Date range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="sched-start-date">Start date</Label>
+              <Input
+                id="sched-start-date"
+                type="date"
+                value={startDate}
+                min={`${currentMonth}-01`}
+                {...(!relaxStartDateMax ? { max: getMonthLastDay(currentMonth) } : {})}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">No activities before this date.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sched-end-date">Schedule through</Label>
+              <Input
+                id="sched-end-date"
+                type="date"
+                value={endDate}
+                min={startDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+              {endDateInvalid ? (
+                <p className="text-xs text-destructive">End date must be on or after the start date.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Can span multiple months.</p>
+              )}
+            </div>
           </div>
 
           {/* Per-goal preference cards */}
           {focusGoals.map((goal) => {
             const pref = prefs[goal.id];
             if (!pref) return null;
+            const phase = trainingPhaseInfo[goal.id];
+            const minimum = trainingPlanMinimums[goal.id];
+            const spw = pref.sessionsPerWeek;
+            const showTier1 = minimum !== undefined && spw === 1;
+            const showTier2 = minimum !== undefined && spw === 2;
+
             return (
               <div key={goal.id} className="rounded-lg border p-4 space-y-4">
-                <p className="text-sm font-medium">{goal.title}</p>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{goal.title}</p>
+                  {phase && (
+                    <p className="text-xs text-muted-foreground">
+                      Active: {phase.phaseName} — Week {computeWeekN(phase.phaseStartDate, phase.durationWeeks)} of {phase.durationWeeks}
+                    </p>
+                  )}
+                </div>
 
                 {/* Sessions per week */}
                 <div className="space-y-1.5">
@@ -178,6 +252,18 @@ export function SchedulePreferencesDialog({
                     }}
                     className="w-20"
                   />
+                  {showTier1 && (
+                    <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>1 session/week is too low for structured training. Increase to at least 3 for a full split, or schedule this goal without a training plan.</span>
+                    </div>
+                  )}
+                  {showTier2 && (
+                    <div className="flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                      <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>With 2 sessions/week, no supplemental sessions will be scheduled. Increase to 3+ for a complete training split.</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Preferred days */}
@@ -237,7 +323,7 @@ export function SchedulePreferencesDialog({
           <Button variant="outline" onClick={onClose} disabled={confirming}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={confirming}>
+          <Button onClick={handleConfirm} disabled={confirming || endDateInvalid}>
             {confirming && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             {confirming ? "Scheduling…" : "Generate & Apply"}
           </Button>
