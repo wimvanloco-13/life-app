@@ -313,7 +313,7 @@ export function ThisWeekView() {
   const headerLabel = formatWeekHeader(mondayDate);
 
   return (
-    <div className="space-y-4">
+    <div className="px-6 py-8 space-y-6 animate-fade-up">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">

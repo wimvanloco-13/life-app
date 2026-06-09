@@ -169,7 +169,7 @@ export function FocusPicker({
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges}>
+          <Button onClick={handleSave}>
             {selected.size === 0
               ? "Clear Focus"
               : `Focus on ${selected.size} Goal${selected.size > 1 ? "s" : ""}`}
