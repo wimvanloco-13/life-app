@@ -75,7 +75,7 @@ function parsePreferredDays(raw: string | null | undefined): number[] {
     const v = JSON.parse(raw);
     return Array.isArray(v) ? v.filter((x): x is number => typeof x === "number") : [];
   } catch {
-    return [];
+    return raw.split(",").map(Number).filter((n) => !isNaN(n) && n > 0);
   }
 }
 
