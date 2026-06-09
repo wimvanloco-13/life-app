@@ -21,7 +21,7 @@ export async function GET(
   const focusRows = await db
     .select({ focusId: weeklyFocusGoals.id, goalId: goals.id, title: goals.title, description: goals.description, targetDate: goals.targetDate, status: goals.status, isCompleted: goals.isCompleted, activityTypeId: goals.activityTypeId, createdAt: goals.createdAt, updatedAt: goals.updatedAt })
     .from(weeklyFocusGoals)
-    .innerJoin(goals, and(eq(weeklyFocusGoals.goalId, goals.id), eq(goals.userId, userId)))
+    .innerJoin(goals, and(eq(weeklyFocusGoals.goalId, goals.id), eq(goals.userId, userId), eq(goals.status, "active")))
     .where(eq(weeklyFocusGoals.weeklyPlanId, plan[0].id));
 
   const goalIds = focusRows.map((r) => r.goalId);
