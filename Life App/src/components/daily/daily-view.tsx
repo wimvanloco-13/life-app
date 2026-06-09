@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -36,6 +36,8 @@ import {
 } from "@/lib/session-type-styles";
 import { cn } from "@/lib/utils";
 import { ActivityForm } from "@/components/monthly-plan/activity-form";
+import { GoalOverviewSection } from "@/components/shared/goal-overview-section";
+import { getPhaseDisplayName } from "@/lib/training/periodization";
 import {
   LinkedLogActionDialog,
   type BridgedLogAction,
@@ -271,6 +273,10 @@ export function DailyView() {
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [activityTypes, setActivityTypes] = useState<ActivityType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [focusGoals, setFocusGoals] = useState<Goal[]>([]);
+  const [trainingPhaseInfo, setTrainingPhaseInfo] = useState<
+    Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
+  >({});
 
   const [formOpen, setFormOpen] = useState(false);
   const [logDialogOpen, setLogDialogOpen] = useState(false);
@@ -296,26 +302,38 @@ export function DailyView() {
   const dateStr = toISODate(currentDate);
   const todayFlag = isToday(currentDate);
 
+  const todayFocusGoals = useMemo(() => {
+    const scheduledGoalIds = new Set(
+      activities.flatMap((a) => (a.goalId != null ? [a.goalId] : []))
+    );
+    return focusGoals.filter(
+      (g) => scheduledGoalIds.has(g.id) || trainingPhaseInfo[g.id] !== undefined
+    );
+  }, [activities, focusGoals, trainingPhaseInfo]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const weekStart = getWeekStartDate(currentDate);
 
-    const [actRes, weekRes, rolesRes, goalsRes, logsRes, typesRes] = await Promise.all([
+    const [actRes, weekRes, rolesRes, goalsRes, logsRes, typesRes, focusRes] = await Promise.all([
       fetch(`/api/activities?date=${dateStr}`),
       fetch(`/api/activities?weekStart=${weekStart}`),
       fetch("/api/roles"),
       fetch("/api/goals?status=active"),
       fetch(`/api/activity-logs?date=${dateStr}`),
       fetch("/api/activity-types"),
+      fetch(`/api/weekly-plans/${weekStart}/goals`),
     ]);
-    const [actData, weekData, rolesData, goalsData, logsData, typesData] = await Promise.all([
-      actRes.json(),
-      weekRes.json(),
-      rolesRes.json(),
-      goalsRes.json(),
-      logsRes.json(),
-      typesRes.json(),
-    ]);
+    const [actData, weekData, rolesData, goalsData, logsData, typesData, focusData] =
+      await Promise.all([
+        actRes.json(),
+        weekRes.json(),
+        rolesRes.json(),
+        goalsRes.json(),
+        logsRes.json(),
+        typesRes.json(),
+        focusRes.ok ? focusRes.json() : Promise.resolve([]),
+      ]);
 
     setActivities(actData);
     setRoles(rolesData);
@@ -327,6 +345,46 @@ export function DailyView() {
       (a) => !a.isCompleted && a.activityDate < dateStr
     );
     setCarryForward(incomplete);
+
+    const focusGoalList: Goal[] = Array.isArray(focusData) ? focusData : [];
+    setFocusGoals(focusGoalList);
+
+    if (focusGoalList.length > 0) {
+      const ids = focusGoalList.map((g) => g.id).join(",");
+      const planRes = await fetch(`/api/training-plans?goalIds=${ids}`);
+      if (planRes.ok) {
+        const planData: Array<{
+          goalId: number;
+          phases: Array<{ phaseType: string; startDate: string; durationWeeks: number }>;
+        }> = await planRes.json();
+        const phaseMap: Record<
+          number,
+          { phaseName: string; phaseStartDate: string; durationWeeks: number }
+        > = {};
+        const today = new Date().toISOString().slice(0, 10);
+        for (const plan of planData) {
+          const activePhase = plan.phases.find((ph) => {
+            const end = new Date(
+              new Date(ph.startDate + "T12:00:00Z").getTime() +
+                ph.durationWeeks * 7 * 24 * 60 * 60 * 1000
+            )
+              .toISOString()
+              .slice(0, 10);
+            return ph.startDate <= today && today <= end;
+          });
+          if (activePhase) {
+            phaseMap[plan.goalId] = {
+              phaseName: getPhaseDisplayName(activePhase.phaseType),
+              phaseStartDate: activePhase.startDate,
+              durationWeeks: activePhase.durationWeeks,
+            };
+          }
+        }
+        setTrainingPhaseInfo(phaseMap);
+      }
+    } else {
+      setTrainingPhaseInfo({});
+    }
 
     setLoading(false);
   }, [dateStr, currentDate]);
@@ -827,6 +885,14 @@ export function DailyView() {
             )}
         </div>
       )}
+
+      {/* Goal overview — active focus goals with training phase context */}
+      <GoalOverviewSection
+        goals={todayFocusGoals}
+        trainingPhaseInfo={trainingPhaseInfo}
+        loading={loading}
+        heading="Focus today"
+      />
 
       <ActivityForm
         key={editingActivity?.id ?? "new"}
