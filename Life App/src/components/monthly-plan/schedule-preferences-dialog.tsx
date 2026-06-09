@@ -90,7 +90,6 @@ function addDays(isoDate: string, days: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-
 export function SchedulePreferencesDialog({
   open,
   onClose,

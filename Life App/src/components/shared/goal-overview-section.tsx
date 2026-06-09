@@ -41,32 +41,22 @@ export function GoalOverviewSection({
             const phase = trainingPhaseInfo[goal.id];
             const weekN = phase ? computeWeekN(phase.phaseStartDate, phase.durationWeeks) : null;
 
-            const cardContent = (
-              <div className="rounded-lg border p-3 space-y-1 min-w-[160px]">
-                <p className="text-sm font-medium leading-tight">{goal.title}</p>
-                {phase && weekN !== null && (
-                  <p className="text-xs text-muted-foreground">
-                    Active: {phase.phaseName} — Week {weekN} of {phase.durationWeeks}
-                  </p>
-                )}
-              </div>
-            );
-
-            if (phase) {
+            if (phase && weekN !== null) {
               return (
-                <Link
-                  key={goal.id}
-                  href="/goals"
-                  className="hover:bg-accent/50 transition-colors rounded-lg block"
-                >
-                  {cardContent}
+                <Link key={goal.id} href="/goals" className="block">
+                  <div className="rounded-lg border p-3 space-y-1 min-w-[160px] hover:bg-accent/50 transition-colors">
+                    <p className="text-sm font-medium leading-tight">{goal.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Active: {phase.phaseName} — Week {weekN} of {phase.durationWeeks}
+                    </p>
+                  </div>
                 </Link>
               );
             }
 
             return (
-              <div key={goal.id} className="cursor-default">
-                {cardContent}
+              <div key={goal.id} className="rounded-lg border p-3 min-w-[160px]">
+                <p className="text-sm font-medium leading-tight">{goal.title}</p>
               </div>
             );
           })}

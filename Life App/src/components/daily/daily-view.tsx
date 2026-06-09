@@ -306,9 +306,7 @@ export function DailyView() {
     const scheduledGoalIds = new Set(
       activities.flatMap((a) => (a.goalId != null ? [a.goalId] : []))
     );
-    return focusGoals.filter(
-      (g) => scheduledGoalIds.has(g.id) || trainingPhaseInfo[g.id] !== undefined
-    );
+    return focusGoals.filter((g) => scheduledGoalIds.has(g.id));
   }, [activities, focusGoals, trainingPhaseInfo]);
 
   const fetchData = useCallback(async () => {
@@ -355,23 +353,14 @@ export function DailyView() {
       if (planRes.ok) {
         const planData: Array<{
           goalId: number;
-          phases: Array<{ phaseType: string; startDate: string; durationWeeks: number }>;
+          phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }>;
         }> = await planRes.json();
         const phaseMap: Record<
           number,
           { phaseName: string; phaseStartDate: string; durationWeeks: number }
         > = {};
-        const today = new Date().toISOString().slice(0, 10);
         for (const plan of planData) {
-          const activePhase = plan.phases.find((ph) => {
-            const end = new Date(
-              new Date(ph.startDate + "T12:00:00Z").getTime() +
-                ph.durationWeeks * 7 * 24 * 60 * 60 * 1000
-            )
-              .toISOString()
-              .slice(0, 10);
-            return ph.startDate <= today && today <= end;
-          });
+          const activePhase = plan.phases.find((ph) => ph.status === "active");
           if (activePhase) {
             phaseMap[plan.goalId] = {
               phaseName: getPhaseDisplayName(activePhase.phaseType),
