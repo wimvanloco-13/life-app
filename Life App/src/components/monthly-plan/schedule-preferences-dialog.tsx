@@ -49,6 +49,11 @@ interface TrainingPhaseEntry {
   durationWeeks: number;
 }
 
+interface TrainingPlanDays {
+  training: number[];
+  supplemental: number[];
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -59,6 +64,7 @@ interface Props {
   error?: string;
   trainingPlanMinimums?: Record<number, number>;
   trainingPhaseInfo?: Record<number, TrainingPhaseEntry>;
+  trainingPlanDays?: Record<number, TrainingPlanDays>;
   relaxStartDateMax?: boolean;
 }
 
@@ -108,6 +114,7 @@ export function SchedulePreferencesDialog({
   error,
   trainingPlanMinimums = {},
   trainingPhaseInfo = {},
+  trainingPlanDays = {},
   relaxStartDateMax = false,
 }: Props) {
   const [startDate, setStartDate] = useState(() => getDefaultStartDate(currentMonth));
@@ -123,9 +130,19 @@ export function SchedulePreferencesDialog({
 
     const initial: Record<number, GoalPref> = {};
     for (const g of focusGoals) {
+      // Prefer days saved on the goal itself; fall back to training plan days
+      // (combined training + supplemental) when the goal has no preference set.
+      const goalDays = parsePreferredDays(g.preferredDays);
+      const planDays = trainingPlanDays[g.id];
+      const derivedDays =
+        goalDays.length > 0
+          ? goalDays
+          : planDays
+          ? [...new Set([...planDays.training, ...planDays.supplemental])].sort((a, b) => a - b)
+          : [];
       initial[g.id] = {
         sessionsPerWeek: g.sessionsPerWeek,
-        preferredDays: parsePreferredDays(g.preferredDays),
+        preferredDays: derivedDays,
         preferredTimeSlot: g.preferredTimeSlot ?? null,
       };
     }
@@ -143,7 +160,7 @@ export function SchedulePreferencesDialog({
       if (candidate > latestEnd) latestEnd = candidate;
     }
     setEndDate(latestEnd);
-  }, [open, currentMonth, focusGoals, trainingPhaseInfo]);
+  }, [open, currentMonth, focusGoals, trainingPhaseInfo, trainingPlanDays]);
 
   function updatePref<K extends keyof GoalPref>(goalId: number, key: K, value: GoalPref[K]) {
     setPrefs((prev) => ({ ...prev, [goalId]: { ...prev[goalId], [key]: value } }));

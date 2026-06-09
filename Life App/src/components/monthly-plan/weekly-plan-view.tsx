@@ -76,7 +76,7 @@ export function WeeklyPlanView() {
 
   // Training plan data loaded at mount so the preferences dialog has it immediately.
   const [trainingPlanData, setTrainingPlanData] = useState<
-    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }>
+    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }>
   >({});
   const [trainingPhaseInfo, setTrainingPhaseInfo] = useState<
     Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
@@ -108,6 +108,17 @@ export function WeeklyPlanView() {
       } else {
         map[id] = 3; // default split minimum
       }
+    }
+    return map;
+  }, [trainingPlanData]);
+
+  const trainingPlanDays = useMemo<Record<number, { training: number[]; supplemental: number[] }>>(() => {
+    const map: Record<number, { training: number[]; supplemental: number[] }> = {};
+    for (const [idStr, plan] of Object.entries(trainingPlanData)) {
+      map[Number(idStr)] = {
+        training: plan.trainingPreferredDays,
+        supplemental: plan.supplementalPreferredDays,
+      };
     }
     return map;
   }, [trainingPlanData]);
@@ -147,15 +158,17 @@ export function WeeklyPlanView() {
     const goalIds: number[] = Array.isArray(focusData) ? focusData.map((g: { id: number }) => g.id) : [];
     if (goalIds.length > 0) {
       const batchRes = await fetch(`/api/training-plans?goalIds=${goalIds.join(",")}`);
-      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
+      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[] | null; supplementalPreferredDays: number[] | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
 
-      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }> = {};
+      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }> = {};
       const phaseInfoMap: Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }> = {};
 
       for (const plan of planResults) {
         planDataMap[plan.goalId] = {
           trainingSessionsPerWeek: plan.trainingSessionsPerWeek ?? null,
           supplementalSessionsPerWeek: plan.supplementalSessionsPerWeek ?? null,
+          trainingPreferredDays: plan.trainingPreferredDays ?? [],
+          supplementalPreferredDays: plan.supplementalPreferredDays ?? [],
         };
         const activePhase = Array.isArray(plan.phases)
           ? plan.phases.find((p) => p.status === "active")
@@ -772,6 +785,7 @@ export function WeeklyPlanView() {
         error={prefsError ?? undefined}
         trainingPlanMinimums={trainingPlanMinimums}
         trainingPhaseInfo={trainingPhaseInfo}
+        trainingPlanDays={trainingPlanDays}
       />
 
       <SchedulerSettingsDialog

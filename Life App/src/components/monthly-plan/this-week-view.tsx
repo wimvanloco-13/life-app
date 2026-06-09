@@ -47,6 +47,7 @@ export function ThisWeekView() {
 
   const [roles, setRoles] = useState<Role[]>([]);
   const [focusGoals, setFocusGoals] = useState<Goal[]>([]);
+  const [allGoals, setAllGoals] = useState<Goal[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [recurring, setRecurring] = useState<RecurringActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,7 @@ export function ThisWeekView() {
   const [pendingDelete, setPendingDelete] = useState<{ id: number; title: string } | null>(null);
 
   const [trainingPlanData, setTrainingPlanData] = useState<
-    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }>
+    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }>
   >({});
   const [trainingPhaseInfo, setTrainingPhaseInfo] = useState<
     Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
@@ -85,15 +86,17 @@ export function ThisWeekView() {
     const responses = await Promise.all([
       fetch("/api/roles"),
       fetch(`/api/weekly-plans/${currentWeekMonday}/goals`),
+      fetch("/api/goals?status=active"),
       fetch(`/api/activities?weekStart=${currentWeekMonday}`),
       fetch("/api/recurring-activities"),
     ]);
-    const [rolesData, focusData, activitiesData, recurringData] = await Promise.all(
+    const [rolesData, focusData, allGoalsData, activitiesData, recurringData] = await Promise.all(
       responses.map((r) => r.json())
     );
 
     setRoles(rolesData);
     setFocusGoals(focusData);
+    setAllGoals(Array.isArray(allGoalsData) ? allGoalsData : []);
     setActivities(activitiesData);
     setRecurring(recurringData);
     setFocusGoalCount(Array.isArray(focusData) ? focusData.length : 0);
@@ -102,15 +105,17 @@ export function ThisWeekView() {
     const goalIds: number[] = Array.isArray(focusData) ? focusData.map((g: { id: number }) => g.id) : [];
     if (goalIds.length > 0) {
       const batchRes = await fetch(`/api/training-plans?goalIds=${goalIds.join(",")}`);
-      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
+      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[] | null; supplementalPreferredDays: number[] | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
 
-      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }> = {};
+      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }> = {};
       const phaseInfoMap: Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }> = {};
 
       for (const plan of planResults) {
         planDataMap[plan.goalId] = {
           trainingSessionsPerWeek: plan.trainingSessionsPerWeek ?? null,
           supplementalSessionsPerWeek: plan.supplementalSessionsPerWeek ?? null,
+          trainingPreferredDays: plan.trainingPreferredDays ?? [],
+          supplementalPreferredDays: plan.supplementalPreferredDays ?? [],
         };
         const activePhase = Array.isArray(plan.phases)
           ? plan.phases.find((p) => p.status === "active")
@@ -147,6 +152,17 @@ export function ThisWeekView() {
       } else {
         map[id] = 3;
       }
+    }
+    return map;
+  }, [trainingPlanData]);
+
+  const trainingPlanDays = useMemo<Record<number, { training: number[]; supplemental: number[] }>>(() => {
+    const map: Record<number, { training: number[]; supplemental: number[] }> = {};
+    for (const [idStr, plan] of Object.entries(trainingPlanData)) {
+      map[Number(idStr)] = {
+        training: plan.trainingPreferredDays,
+        supplemental: plan.supplementalPreferredDays,
+      };
     }
     return map;
   }, [trainingPlanData]);
@@ -352,6 +368,21 @@ export function ThisWeekView() {
         </div>
       )}
 
+      {/* Focus goals strip */}
+      {!loading && focusGoals.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground uppercase tracking-wide">Focus</span>
+          {focusGoals.map((g) => (
+            <span
+              key={g.id}
+              className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium"
+            >
+              {g.title}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Week grid */}
       {loading ? (
         <div className="grid grid-cols-7 gap-2">
@@ -360,28 +391,51 @@ export function ThisWeekView() {
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto -mx-2 px-2">
-          <div className="grid grid-cols-7 gap-2 min-w-[700px]">
-            {weekDates.map((date) => {
-              const dateStr = format(date, "yyyy-MM-dd");
-              const dayActivities = activities.filter((a) => a.activityDate === dateStr);
-              return (
-                <DayColumn
-                  key={dateStr}
-                  date={date}
-                  activities={dayActivities}
-                  recurringActivities={recurring}
-                  onAddActivity={openAddActivity}
-                  onToggleActivity={handleToggleActivity}
-                  onClickActivity={(activity) => {
-                    setEditingActivity(activity);
-                    setActivityFormOpen(true);
-                  }}
-                />
-              );
-            })}
+        <>
+          <div className="overflow-x-auto -mx-2 px-2">
+            <div className="grid grid-cols-7 gap-2 min-w-[700px]">
+              {weekDates.map((date) => {
+                const dateStr = format(date, "yyyy-MM-dd");
+                const dayActivities = activities.filter((a) => a.activityDate === dateStr);
+                return (
+                  <DayColumn
+                    key={dateStr}
+                    date={date}
+                    activities={dayActivities}
+                    recurringActivities={recurring}
+                    onAddActivity={openAddActivity}
+                    onToggleActivity={handleToggleActivity}
+                    onClickActivity={(activity) => {
+                      setEditingActivity(activity);
+                      setActivityFormOpen(true);
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+
+          {/* Empty state — shown when nothing is scheduled this week */}
+          {activities.length === 0 && recurring.length === 0 && (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-12 text-center">
+              <p className="text-sm font-medium">Nothing scheduled this week</p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                {focusGoals.length > 0
+                  ? "Generate a schedule to fill the week based on your focus goals, or add activities manually."
+                  : "Set focus goals on the Monthly Plan first, then generate a schedule or add activities manually."}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => openAddActivity("", "")}>
+                  Add manually
+                </Button>
+                <Button size="sm" onClick={handleGenerateSchedule} disabled={confirming}>
+                  <Sparkles className="mr-1.5 h-4 w-4" />
+                  Generate Schedule
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Activity form dialog */}
@@ -395,7 +449,7 @@ export function ThisWeekView() {
         onSave={handleSaveActivity}
         onDelete={handleDeleteActivity}
         roles={roles}
-        goals={focusGoals}
+        goals={allGoals.length > 0 ? allGoals : focusGoals}
         activity={editingActivity}
         defaultDate={defaultDate}
         defaultStartTime={defaultStartTime}
@@ -411,6 +465,7 @@ export function ThisWeekView() {
         error={prefsError ?? undefined}
         trainingPlanMinimums={trainingPlanMinimums}
         trainingPhaseInfo={trainingPhaseInfo}
+        trainingPlanDays={trainingPlanDays}
         relaxStartDateMax
       />
 
