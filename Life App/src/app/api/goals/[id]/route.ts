@@ -67,7 +67,7 @@ export async function PATCH(
   if (body.month !== undefined) updates.month = body.month || null;
   if (body.preferredDays !== undefined) {
     updates.preferredDays = Array.isArray(body.preferredDays)
-      ? JSON.stringify(body.preferredDays)
+      ? body.preferredDays.join(",")
       : (body.preferredDays || null);
   }
   if (body.preferredTimeSlot !== undefined) updates.preferredTimeSlot = body.preferredTimeSlot || null;
