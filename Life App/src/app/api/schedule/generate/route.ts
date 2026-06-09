@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         updatedAt: goals.updatedAt,
       })
       .from(weeklyFocusGoals)
-      .innerJoin(goals, and(eq(weeklyFocusGoals.goalId, goals.id), eq(goals.userId, userId)))
+      .innerJoin(goals, and(eq(weeklyFocusGoals.goalId, goals.id), eq(goals.userId, userId), eq(goals.status, "active")))
       .where(eq(weeklyFocusGoals.weeklyPlanId, plan[0].id));
 
     const goalIds = focusRows.map((r) => r.goalId);
@@ -271,7 +271,7 @@ export async function POST(request: NextRequest) {
       scopeActivities as any,
       allRecurring as any,
       allRoles as any,
-      scope === "month" ? (effectiveDates[0] ?? monthFirstDay) : weekStartDate,
+      scope === "month" ? monthFirstDay : weekStartDate,
       settings,
       scope as "week" | "month",
       monthlyOverrides.size > 0 ? monthlyOverrides : undefined,
@@ -280,6 +280,14 @@ export async function POST(request: NextRequest) {
       trainingPhaseMap.size > 0 ? trainingPhaseMap : undefined,
       trainingPlanSplitMap.size > 0 ? trainingPlanSplitMap : undefined
     );
+
+    // Clip proposed activities to the effective date range so startDate is respected.
+    // generateSchedule always computes the full month internally from the first day of the
+    // month; the API-level effectiveDates filter is the authoritative floor.
+    if (startDate && proposal.activities) {
+      const effectiveDateSet = new Set(effectiveDates);
+      proposal.activities = proposal.activities.filter((a) => effectiveDateSet.has(a.activityDate));
+    }
 
     return NextResponse.json({
       ...proposal,
