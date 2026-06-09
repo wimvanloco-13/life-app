@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { trainingPlans, trainingPhases, goals } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { assessLevel, generatePhases } from "@/lib/training/periodization";
 import { assessTennisLevel, generateTennisPhases } from "@/lib/training/tennis-periodization";
 import { assessRunningLevel, generateRunningPhases } from "@/lib/training/running-periodization";
@@ -28,7 +28,50 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const goalId = searchParams.get("goalId");
-  if (!goalId) return NextResponse.json({ error: "goalId query parameter is required" }, { status: 400 });
+  const goalIdsParam = searchParams.get("goalIds");
+
+  // Batch mode: goalIds=1,2,3 — returns an array of plan+phases objects
+  // (null entries for goals without a plan are omitted).
+  if (goalIdsParam) {
+    const ids = goalIdsParam
+      .split(",")
+      .map((s) => parseInt(s.trim()))
+      .filter((n) => !isNaN(n));
+    if (ids.length === 0) return NextResponse.json([]);
+
+    const plans = await db
+      .select()
+      .from(trainingPlans)
+      .where(and(inArray(trainingPlans.goalId, ids), eq(trainingPlans.userId, userId)));
+
+    if (plans.length === 0) return NextResponse.json([]);
+
+    // Fetch all phases for the returned plans in one query.
+    const planIds = plans.map((p) => p.id);
+    const allPhases = await db
+      .select()
+      .from(trainingPhases)
+      .where(inArray(trainingPhases.trainingPlanId, planIds));
+
+    const phasesByPlan = new Map<number, typeof allPhases>();
+    for (const phase of allPhases) {
+      if (!phasesByPlan.has(phase.trainingPlanId)) phasesByPlan.set(phase.trainingPlanId, []);
+      phasesByPlan.get(phase.trainingPlanId)!.push(phase);
+    }
+
+    return NextResponse.json(
+      plans.map((plan) => ({
+        ...plan,
+        sportProfile: parseSportProfile(plan.sportProfile),
+        trainingPreferredDays: parseDayArray(plan.trainingPreferredDays),
+        supplementalPreferredDays: parseDayArray(plan.supplementalPreferredDays),
+        phases: (phasesByPlan.get(plan.id) ?? []).sort((a, b) => a.orderIndex - b.orderIndex),
+      }))
+    );
+  }
+
+  // Single-goal mode (existing behaviour).
+  if (!goalId) return NextResponse.json({ error: "goalId or goalIds query parameter is required" }, { status: 400 });
 
   const plans = await db.select().from(trainingPlans).where(and(eq(trainingPlans.goalId, parseInt(goalId)), eq(trainingPlans.userId, userId)));
   if (plans.length === 0) return NextResponse.json(null);

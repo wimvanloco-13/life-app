@@ -98,29 +98,25 @@ export function ThisWeekView() {
     setRecurring(recurringData);
     setFocusGoalCount(Array.isArray(focusData) ? focusData.length : 0);
 
-    // Fetch training plan + active phase for each focus goal in parallel.
+    // Single batch request for all focus goals' training plans.
     const goalIds: number[] = Array.isArray(focusData) ? focusData.map((g: { id: number }) => g.id) : [];
     if (goalIds.length > 0) {
-      const planResponses = await Promise.all(
-        goalIds.map((id) => fetch(`/api/training-plans?goalId=${id}`))
-      );
-      const planResults = await Promise.all(planResponses.map((r) => r.json()));
+      const batchRes = await fetch(`/api/training-plans?goalIds=${goalIds.join(",")}`);
+      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
 
       const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null }> = {};
       const phaseInfoMap: Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }> = {};
 
-      for (let i = 0; i < goalIds.length; i++) {
-        const plan = planResults[i];
-        if (!plan) continue;
-        planDataMap[goalIds[i]] = {
+      for (const plan of planResults) {
+        planDataMap[plan.goalId] = {
           trainingSessionsPerWeek: plan.trainingSessionsPerWeek ?? null,
           supplementalSessionsPerWeek: plan.supplementalSessionsPerWeek ?? null,
         };
         const activePhase = Array.isArray(plan.phases)
-          ? plan.phases.find((p: { status: string }) => p.status === "active")
+          ? plan.phases.find((p) => p.status === "active")
           : null;
         if (activePhase) {
-          phaseInfoMap[goalIds[i]] = {
+          phaseInfoMap[plan.goalId] = {
             phaseName: getPhaseDisplayName(activePhase.phaseType),
             phaseStartDate: activePhase.startDate,
             durationWeeks: activePhase.durationWeeks,
