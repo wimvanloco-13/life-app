@@ -28,6 +28,7 @@ import {
   toISODate,
   formatTime,
   getWeekStartDate,
+  getFocusGoalWeekKey,
 } from "@/lib/dates";
 import { getQuadrantInfo } from "@/lib/quadrants";
 import {
@@ -320,7 +321,7 @@ export function DailyView() {
       fetch("/api/goals?status=active"),
       fetch(`/api/activity-logs?date=${dateStr}`),
       fetch("/api/activity-types"),
-      fetch(`/api/weekly-plans/${weekStart}/goals`),
+      fetch(`/api/weekly-plans/${getFocusGoalWeekKey(currentDate)}/goals`),
     ]);
     const [actData, weekData, rolesData, goalsData, logsData, typesData, focusData] =
       await Promise.all([

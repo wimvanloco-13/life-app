@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sparkles, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { format, addWeeks, subWeeks, parseISO } from "date-fns";
-import { getWeekStartDate, getWeekDates } from "@/lib/dates";
+import { getWeekStartDate, getWeekDates, getFocusGoalWeekKey } from "@/lib/dates";
 import { getPhaseDisplayName } from "@/lib/training/periodization";
 import { DayColumn } from "./day-column";
 import { ActivityForm } from "./activity-form";
@@ -68,7 +68,7 @@ export function ThisWeekView() {
   const [pendingDelete, setPendingDelete] = useState<{ id: number; title: string } | null>(null);
 
   const [trainingPlanData, setTrainingPlanData] = useState<
-    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }>
+    Record<number, { id: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }>
   >({});
   const [trainingPhaseInfo, setTrainingPhaseInfo] = useState<
     Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
@@ -86,7 +86,7 @@ export function ThisWeekView() {
     setLoading(true);
     const responses = await Promise.all([
       fetch("/api/roles"),
-      fetch(`/api/weekly-plans/${currentWeekMonday}/goals`),
+      fetch(`/api/weekly-plans/${getFocusGoalWeekKey(new Date(currentWeekMonday + "T12:00:00Z"))}/goals`),
       fetch("/api/goals?status=active"),
       fetch(`/api/activities?weekStart=${currentWeekMonday}`),
       fetch("/api/recurring-activities"),
@@ -106,13 +106,14 @@ export function ThisWeekView() {
     const goalIds: number[] = Array.isArray(focusData) ? focusData.map((g: { id: number }) => g.id) : [];
     if (goalIds.length > 0) {
       const batchRes = await fetch(`/api/training-plans?goalIds=${goalIds.join(",")}`);
-      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[] | null; supplementalPreferredDays: number[] | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
+      const planResults: Array<{ id: number; goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[] | null; supplementalPreferredDays: number[] | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
 
-      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }> = {};
+      const planDataMap: Record<number, { id: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }> = {};
       const phaseInfoMap: Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }> = {};
 
       for (const plan of planResults) {
         planDataMap[plan.goalId] = {
+          id: plan.id,
           trainingSessionsPerWeek: plan.trainingSessionsPerWeek ?? null,
           supplementalSessionsPerWeek: plan.supplementalSessionsPerWeek ?? null,
           trainingPreferredDays: plan.trainingPreferredDays ?? [],
@@ -164,6 +165,14 @@ export function ThisWeekView() {
         training: plan.trainingPreferredDays,
         supplemental: plan.supplementalPreferredDays,
       };
+    }
+    return map;
+  }, [trainingPlanData]);
+
+  const trainingPlanIds = useMemo<Record<number, number>>(() => {
+    const map: Record<number, number> = {};
+    for (const [idStr, plan] of Object.entries(trainingPlanData)) {
+      map[Number(idStr)] = plan.id;
     }
     return map;
   }, [trainingPlanData]);
@@ -272,7 +281,7 @@ export function ThisWeekView() {
     setConfirming(true);
     try {
       if (patches.length > 0) {
-        const patchResults = await Promise.all(
+        const goalPatchResults = await Promise.all(
           patches.map(({ id, prefs }) =>
             fetch(`/api/goals/${id}`, {
               method: "PATCH",
@@ -281,8 +290,27 @@ export function ThisWeekView() {
             })
           )
         );
-        if (patchResults.some((r) => !r.ok)) {
+        if (goalPatchResults.some((r) => !r.ok)) {
           throw new Error("Failed to update goal preferences. Please try again.");
+        }
+
+        const planPatches = patches.filter((p) => p.trainingPlanId !== undefined && p.prefs.preferredDays !== undefined);
+        if (planPatches.length > 0) {
+          const planPatchResults = await Promise.all(
+            planPatches.map(({ trainingPlanId, prefs }) =>
+              fetch(`/api/training-plans/${trainingPlanId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  trainingPreferredDays: prefs.preferredDays,
+                  supplementalPreferredDays: prefs.preferredDays,
+                }),
+              })
+            )
+          );
+          if (planPatchResults.some((r) => !r.ok)) {
+            throw new Error("Failed to update training plan preferred days. Please try again.");
+          }
         }
       }
 
@@ -475,6 +503,7 @@ export function ThisWeekView() {
         trainingPlanMinimums={trainingPlanMinimums}
         trainingPhaseInfo={trainingPhaseInfo}
         trainingPlanDays={trainingPlanDays}
+        trainingPlanIds={trainingPlanIds}
         relaxStartDateMax
       />
 
