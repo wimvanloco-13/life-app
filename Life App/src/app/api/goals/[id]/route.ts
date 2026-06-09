@@ -78,12 +78,23 @@ export async function PATCH(
 
   const [updated] = await db.update(goals).set(updates).where(and(eq(goals.id, goalId), eq(goals.userId, userId))).returning();
 
-  // Cascade archive status to monthly children (archive or restore, not completion)
+  // Cascade archive/restore status to monthly children.
   if (body.status === "archived" || body.status === "active") {
     await db
       .update(goals)
       .set({ status: body.status, updatedAt: new Date().toISOString() })
       .where(and(eq(goals.parentGoalId, goalId), eq(goals.userId, userId)));
+  }
+
+  // Remove this goal (and its monthly children) from all weekly focus lists when
+  // it is archived or completed so it no longer appears in schedule dialogs.
+  if (body.status === "archived" || body.status === "completed" || body.isCompleted) {
+    const childIds = await db
+      .select({ id: goals.id })
+      .from(goals)
+      .where(and(eq(goals.parentGoalId, goalId), eq(goals.userId, userId)));
+    const idsToRemove = [goalId, ...childIds.map((c) => c.id)];
+    await db.delete(weeklyFocusGoals).where(inArray(weeklyFocusGoals.goalId, idsToRemove));
   }
 
   if (Array.isArray(body.roleIds)) {
