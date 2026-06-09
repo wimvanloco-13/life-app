@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertTriangle } from "lucide-react";
 import type { Goal } from "@/types";
+import { computeWeekN } from "@/lib/training/phase-utils";
 
 const DAYS = [
   { label: "Mo", value: 1 },
@@ -93,15 +94,6 @@ function addDays(isoDate: string, days: number): string {
   const ms = new Date(isoDate + "T12:00:00Z").getTime() + days * 24 * 60 * 60 * 1000;
   const d = new Date(ms);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
-function computeWeekN(phaseStartDate: string, durationWeeks: number): number {
-  const today = new Date().toISOString().slice(0, 10);
-  const raw = Math.ceil(
-    (new Date(today + "T12:00:00Z").getTime() - new Date(phaseStartDate + "T12:00:00Z").getTime()) /
-      (7 * 24 * 60 * 60 * 1000)
-  );
-  return Math.max(1, Math.min(durationWeeks, raw));
 }
 
 export function SchedulePreferencesDialog({

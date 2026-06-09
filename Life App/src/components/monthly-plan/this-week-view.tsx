@@ -11,6 +11,7 @@ import { getPhaseDisplayName } from "@/lib/training/periodization";
 import { DayColumn } from "./day-column";
 import { ActivityForm } from "./activity-form";
 import { SchedulePreferencesDialog, type GoalPatch } from "./schedule-preferences-dialog";
+import { GoalOverviewSection } from "@/components/shared/goal-overview-section";
 import {
   LinkedLogActionDialog,
   type BridgedLogAction,
@@ -437,6 +438,14 @@ export function ThisWeekView() {
           )}
         </>
       )}
+
+      {/* Goal overview — active focus goals with training phase context */}
+      <GoalOverviewSection
+        goals={focusGoals}
+        trainingPhaseInfo={trainingPhaseInfo}
+        loading={loading}
+        heading="Focus this week"
+      />
 
       {/* Activity form dialog */}
       <ActivityForm
