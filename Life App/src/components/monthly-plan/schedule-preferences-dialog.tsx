@@ -42,6 +42,8 @@ interface GoalPref {
 export interface GoalPatch {
   id: number;
   prefs: Partial<GoalPref>;
+  /** Present when the goal has a training plan — handleConfirmGenerate uses it to also PATCH the plan's preferred day arrays. */
+  trainingPlanId?: number;
 }
 
 interface TrainingPhaseEntry {
@@ -66,6 +68,8 @@ interface Props {
   trainingPlanMinimums?: Record<number, number>;
   trainingPhaseInfo?: Record<number, TrainingPhaseEntry>;
   trainingPlanDays?: Record<number, TrainingPlanDays>;
+  /** goalId → training plan DB id, for goals that have a plan. Used to sync plan day arrays on confirm. */
+  trainingPlanIds?: Record<number, number>;
   relaxStartDateMax?: boolean;
 }
 
@@ -107,6 +111,7 @@ export function SchedulePreferencesDialog({
   trainingPlanMinimums = {},
   trainingPhaseInfo = {},
   trainingPlanDays = {},
+  trainingPlanIds = {},
   relaxStartDateMax = false,
 }: Props) {
   const [startDate, setStartDate] = useState(() => getDefaultStartDate(currentMonth));
@@ -172,13 +177,18 @@ export function SchedulePreferencesDialog({
     for (const g of focusGoals) {
       const current = prefs[g.id];
       if (!current) continue;
+      const planId = trainingPlanIds[g.id];
       const patch: Partial<GoalPref> = {};
       if (current.sessionsPerWeek !== g.sessionsPerWeek) patch.sessionsPerWeek = current.sessionsPerWeek;
       const originalDays = parsePreferredDays(g.preferredDays);
-      if (JSON.stringify(current.preferredDays) !== JSON.stringify(originalDays)) patch.preferredDays = current.preferredDays;
+      // For plan-backed goals always include preferredDays so the training plan day arrays
+      // stay in sync with what the user sees, even if the goal's own value didn't change.
+      if (planId !== undefined || JSON.stringify(current.preferredDays) !== JSON.stringify(originalDays)) {
+        patch.preferredDays = current.preferredDays;
+      }
       const originalSlot = g.preferredTimeSlot ?? null;
       if (current.preferredTimeSlot !== originalSlot) patch.preferredTimeSlot = current.preferredTimeSlot;
-      if (Object.keys(patch).length > 0) patches.push({ id: g.id, prefs: patch });
+      if (Object.keys(patch).length > 0) patches.push({ id: g.id, prefs: patch, trainingPlanId: planId });
     }
     onConfirm(startDate, endDate, patches);
   }

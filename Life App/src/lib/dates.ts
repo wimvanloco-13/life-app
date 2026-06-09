@@ -22,6 +22,17 @@ export function getWeekStartDate(date: Date = new Date()): string {
 }
 
 /**
+ * Returns the canonical weekly-plan key used to store a month's focus goals.
+ * The Monthly Plan always stores focus goals on the week containing the 1st of
+ * the month (getWeekStartDate(firstOfMonth)).  This Week and Today must query
+ * that same key — not their own ISO week — so they see the same rows.
+ */
+export function getFocusGoalWeekKey(date: Date): string {
+  const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+  return getWeekStartDate(firstOfMonth);
+}
+
+/**
  * Get all 7 dates (Monday through Sunday) for the week containing the given date.
  */
 export function getWeekDates(weekStartDate: string): Date[] {

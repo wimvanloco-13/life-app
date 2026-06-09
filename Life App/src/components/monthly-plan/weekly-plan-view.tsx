@@ -76,7 +76,7 @@ export function WeeklyPlanView() {
 
   // Training plan data loaded at mount so the preferences dialog has it immediately.
   const [trainingPlanData, setTrainingPlanData] = useState<
-    Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }>
+    Record<number, { id: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }>
   >({});
   const [trainingPhaseInfo, setTrainingPhaseInfo] = useState<
     Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }>
@@ -123,6 +123,14 @@ export function WeeklyPlanView() {
     return map;
   }, [trainingPlanData]);
 
+  const trainingPlanIds = useMemo<Record<number, number>>(() => {
+    const map: Record<number, number> = {};
+    for (const [idStr, plan] of Object.entries(trainingPlanData)) {
+      map[Number(idStr)] = plan.id;
+    }
+    return map;
+  }, [trainingPlanData]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
@@ -158,13 +166,14 @@ export function WeeklyPlanView() {
     const goalIds: number[] = Array.isArray(focusData) ? focusData.map((g: { id: number }) => g.id) : [];
     if (goalIds.length > 0) {
       const batchRes = await fetch(`/api/training-plans?goalIds=${goalIds.join(",")}`);
-      const planResults: Array<{ goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[] | null; supplementalPreferredDays: number[] | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
+      const planResults: Array<{ id: number; goalId: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[] | null; supplementalPreferredDays: number[] | null; phases: Array<{ status: string; phaseType: string; startDate: string; durationWeeks: number }> }> = batchRes.ok ? await batchRes.json() : [];
 
-      const planDataMap: Record<number, { trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }> = {};
+      const planDataMap: Record<number, { id: number; trainingSessionsPerWeek: number | null; supplementalSessionsPerWeek: number | null; trainingPreferredDays: number[]; supplementalPreferredDays: number[] }> = {};
       const phaseInfoMap: Record<number, { phaseName: string; phaseStartDate: string; durationWeeks: number }> = {};
 
       for (const plan of planResults) {
         planDataMap[plan.goalId] = {
+          id: plan.id,
           trainingSessionsPerWeek: plan.trainingSessionsPerWeek ?? null,
           supplementalSessionsPerWeek: plan.supplementalSessionsPerWeek ?? null,
           trainingPreferredDays: plan.trainingPreferredDays ?? [],
@@ -430,7 +439,7 @@ export function WeeklyPlanView() {
     try {
       // 1. Patch modified goal preferences in parallel.
       if (patches.length > 0) {
-        const patchResults = await Promise.all(
+        const goalPatchResults = await Promise.all(
           patches.map(({ id, prefs }) =>
             fetch(`/api/goals/${id}`, {
               method: "PATCH",
@@ -439,8 +448,29 @@ export function WeeklyPlanView() {
             })
           )
         );
-        if (patchResults.some((r) => !r.ok)) {
+        if (goalPatchResults.some((r) => !r.ok)) {
           throw new Error("Failed to update goal preferences. Please try again.");
+        }
+
+        // 1b. For plan-backed goals, sync preferred days to the training plan so the
+        //     scheduler (which reads from trainingPlans.*PreferredDays) respects the change.
+        const planPatches = patches.filter((p) => p.trainingPlanId !== undefined && p.prefs.preferredDays !== undefined);
+        if (planPatches.length > 0) {
+          const planPatchResults = await Promise.all(
+            planPatches.map(({ trainingPlanId, prefs }) =>
+              fetch(`/api/training-plans/${trainingPlanId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  trainingPreferredDays: prefs.preferredDays,
+                  supplementalPreferredDays: prefs.preferredDays,
+                }),
+              })
+            )
+          );
+          if (planPatchResults.some((r) => !r.ok)) {
+            throw new Error("Failed to update training plan preferred days. Please try again.");
+          }
         }
       }
 
@@ -786,6 +816,7 @@ export function WeeklyPlanView() {
         trainingPlanMinimums={trainingPlanMinimums}
         trainingPhaseInfo={trainingPhaseInfo}
         trainingPlanDays={trainingPlanDays}
+        trainingPlanIds={trainingPlanIds}
       />
 
       <SchedulerSettingsDialog
